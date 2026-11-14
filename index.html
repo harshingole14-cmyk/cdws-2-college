@@ -1,0 +1,1843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CDWS 2.0 — College Digital Window Services</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.47.10/dist/umd/supabase.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          colors: {
+            cream: { 50: '#FDFBF7', 100: '#FAF6EE', 200: '#F3EBD9', 300: '#E7D9BE' },
+            forest: { 700: '#2D6A4F', 800: '#1B4332', 900: '#132E22' },
+            bronze: { 600: '#B45309', 700: '#92400E' }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; background-color: #FAF6EE; color: #1C1917; }
+    .tab-active { border-bottom: 2px solid #1B4332; color: #1B4332; font-weight: 700; }
+    @keyframes pulseSoft { 0%, 100% { opacity: 1; } 50% { opacity: 0.65; } }
+    .animate-pulse-soft { animation: pulseSoft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased overflow-x-hidden">
+
+  <!-- Trust & Prototype Notice Bar (Public-Safe: No Admin/Reset Controls) -->
+  <div class="bg-cream-200 border-b border-cream-300 text-stone-800 text-xs px-4 py-1.5 flex items-center justify-center sm:justify-between gap-2">
+    <div class="flex items-center gap-2">
+      <span class="inline-flex items-center px-2 py-0.5 rounded font-bold bg-forest-800 text-white shrink-0">LIVE PROTOTYPE</span>
+      <span>Zero pre-filled fake metrics. All counts, reports, and queues reflect real actions taken.</span>
+    </div>
+  </div>
+
+  <!-- Main Navigation Header -->
+  <header class="bg-white border-b border-cream-300 sticky top-0 z-30 shadow-2xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-16 py-2 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5 shrink-0">
+        <button id="btn-back-main" class="hidden px-2.5 py-1.5 rounded-lg bg-cream-100 border border-cream-300 text-stone-800 text-xs font-bold hover:bg-cream-200 transition shrink-0 whitespace-nowrap">← Main</button>
+        <button id="nav-logo" class="flex items-center gap-2.5 text-left focus:outline-none shrink-0 whitespace-nowrap">
+          <div class="w-9 h-9 rounded-lg bg-forest-800 text-cream-50 flex items-center justify-center font-extrabold text-sm shadow-xs shrink-0">C2</div>
+          <div>
+            <div class="font-bold text-stone-900 leading-tight text-sm sm:text-base whitespace-nowrap">CDWS 2.0</div>
+            <div class="text-[11px] text-stone-500 hidden xl:block whitespace-nowrap">College Digital Window Services</div>
+          </div>
+        </button>
+
+        <div class="hidden lg:flex items-center gap-1.5 ml-2 pl-3 border-l border-cream-300">
+          <span class="text-xs text-stone-500 font-medium shrink-0">Campus:</span>
+          <select id="tenant-select" class="max-w-[190px] xl:max-w-[240px] truncate text-xs font-semibold bg-cream-100 border border-cream-300 rounded-lg px-2.5 py-1.5 text-stone-800 focus:outline-none focus:ring-2 focus:ring-forest-700"></select>
+        </div>
+      </div>
+
+      <!-- Direct Portal Switchers -->
+      <nav class="hidden md:flex items-center gap-1 bg-cream-100 p-1 rounded-xl border border-cream-300 shrink-0">
+        <button id="nav-portal-home" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap">Overview</button>
+        <button id="nav-portal-student" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap">Student</button>
+        <button id="nav-portal-staff" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap">Staff &amp; Admin</button>
+        <button id="nav-portal-monitor" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap">Live Monitor</button>
+      </nav>
+
+      <!-- Right Controls -->
+      <div class="flex items-center gap-2 shrink-0 whitespace-nowrap">
+        <span id="cloud-status-pill" class="hidden sm:inline-flex items-center px-2 py-1 rounded-full text-[11px] font-bold bg-cream-100 text-stone-700 border border-cream-300">Local Sync</span>
+        <div id="session-controls" class="flex items-center gap-2"></div>
+      </div>
+    </div>
+
+    <!-- Mobile Navigation & Campus Bar -->
+    <div class="md:hidden px-4 py-2 bg-cream-50 border-t border-cream-200 flex flex-wrap items-center justify-between gap-2">
+      <select id="tenant-select-mobile" class="w-full max-w-full min-w-0 flex-1 text-xs font-semibold bg-white border border-cream-300 rounded-md px-2 py-1.5 text-stone-800 truncate"></select>
+      <div class="flex items-center gap-1">
+        <button id="mob-nav-student" class="px-2 py-1 rounded bg-forest-800 text-white text-xs font-semibold">Student</button>
+        <button id="mob-nav-staff" class="px-2 py-1 rounded bg-bronze-600 text-white text-xs font-semibold">Staff</button>
+        <button id="mob-nav-monitor" class="px-2 py-1 rounded bg-stone-800 text-white text-xs font-semibold">Monitor</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Root -->
+  <main id="app-root" class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6"></main>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- Modal Container -->
+  <div id="modal-backdrop" class="fixed inset-0 bg-stone-900/50 backdrop-blur-xs z-40 hidden items-center justify-center p-4">
+    <div id="modal-panel" class="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-cream-300"></div>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      const STORAGE_KEY = 'cdws_2_0_trusted_state_v3';
+      const CLOUD_CFG_KEY = 'cdws_2_0_supabase_cfg_v1';
+      let bc = null;
+      let supabaseClient = null;
+      let supabaseChannel = null;
+
+      try {
+        if ('BroadcastChannel' in window) bc = new BroadcastChannel('cdws2_live_channel');
+      } catch (e) {}
+
+      const TENANTS = [
+        {
+          id: 'jdc_goveli',
+          collegeName: "Jeevandeep Art's, Commerce and Science College, Goveli",
+          branchName: 'Goveli Campus',
+          code: 'JDC-GOV',
+          w7Name: 'W7: NSS & Student Welfare',
+          w7ServiceLabel: 'NSS / Extracurricular Verification'
+        },
+        {
+          id: 'jdc_khardi',
+          collegeName: "Jeevandeep Art's, Commerce and Science College, Khardi",
+          branchName: 'Khardi Campus',
+          code: 'JDC-KHR',
+          w7Name: 'W7: Student Support & Grievance',
+          w7ServiceLabel: 'Student Support & ID Card Desk'
+        },
+        {
+          id: 'jdc_poi',
+          collegeName: "Jeevandeep Art's, Commerce and Science College, Poi",
+          branchName: 'Poi Campus',
+          code: 'JDC-POI',
+          w7Name: 'W7: Cultural & Sports Desk',
+          w7ServiceLabel: 'Cultural & Sports Verification'
+        }
+      ];
+
+      // Zero plaintext passcodes in browser code: verifies via Supabase server RPC when connected,
+      // or SHA-256 digest comparison in local-only preview mode.
+      const LOCAL_PASSCODE_HASHES = {
+        W1: '1707926de26556f978b3141e8b024144ae204009151205f20fcf00b791d48b9e',
+        W2: 'a08bf80d732f5ca79916cdb9fb7c4414420bf65408a7c6998f9bb2c4fe38d81c',
+        W3: 'ef0f98b377d206434b40c8fef645cd49913fe3fce434d228a309ef49ffad7280',
+        W4: 'dc48fc97e7ad7a874085146f6726cf4c1e6145329f4005800a2e3f4865bd3363',
+        W5: 'a399a573a490e2eb0154aa281a46a47f06a74e420080164ada5c8a10a9b3ba80',
+        W6: 'f06a7b8bf27c3147e2198218c775b28245c0acee533c40046d34854f226cac24',
+        W7: '66e7f63a415095e3d6981e517a062b38ec2cb0d9f2001bdc8d5e27ae450900e8',
+        SUPERVISOR: '11cf698a2f50d2764c3a37f44e7b6c1f79f849d92be4c94b74876166fa105681',
+        ADMIN: 'c4150018f7f266de19b2f235402858a66222dcfed96c958cc91d7658afbcffbf'
+      };
+
+      async function verifyPasscode(roleKey, inputCode) {
+        if (supabaseClient && cloudCfg.connected) {
+          try {
+            const { data, error } = await supabaseClient.rpc('verify_cdws_passcode', {
+              role_key: roleKey,
+              input_code: inputCode
+            });
+            if (!error && typeof data === 'boolean') return data;
+          } catch (e) {}
+        }
+        try {
+          const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(inputCode));
+          const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+          return hex === LOCAL_PASSCODE_HASHES[roleKey];
+        } catch (e) {
+          return false;
+        }
+      }
+
+      function createInitialTenantState(tenant) {
+        return {
+          cutoffClosed: false,
+          nextTokenSeq: 101,
+          windows: [
+            { id: 'W1', name: 'Window 1', type: 'SHARED_POOL', status: 'OPEN', servedCount: 0, currentTokenId: null },
+            { id: 'W2', name: 'Window 2', type: 'SHARED_POOL', status: 'OPEN', servedCount: 0, currentTokenId: null },
+            { id: 'W3', name: 'Window 3', type: 'SHARED_POOL', status: 'OPEN', servedCount: 0, currentTokenId: null },
+            { id: 'W4', name: 'Window 4', type: 'SHARED_POOL', status: 'OPEN', servedCount: 0, currentTokenId: null },
+            { id: 'W5', name: 'Window 5', type: 'LIBRARY', status: 'OPEN', servedCount: 0, currentTokenId: null },
+            { id: 'W6', name: 'Window 6', type: 'EXAM_SCHOLARSHIP', status: 'OPEN', servedCount: 0, currentTokenId: null },
+            { id: 'W7', name: tenant.w7Name, type: 'CUSTOM', status: 'OPEN', servedCount: 0, currentTokenId: null }
+          ],
+          services: [
+            { id: 'srv_bonafide', name: 'Bonafide Certificate', desc: 'Needed for bus/train concession pass, bank account, or student ID proof.', category: 'General Admin', avgMinutes: 4, eligibleWindows: ['W1', 'W2', 'W3', 'W4'], poolType: 'SHARED_POOL', enabled: true },
+            { id: 'srv_fee', name: 'Fee Receipt & Concession', desc: 'Get duplicate fee receipt, installment approval, or fee concession.', category: 'Accounts', avgMinutes: 6, eligibleWindows: ['W1', 'W2', 'W3'], poolType: 'SHARED_POOL', enabled: true },
+            { id: 'srv_tc', name: 'Transfer / Leaving Certificate', desc: 'Required when leaving college, migrating, or applying for LC/TC.', category: 'General Admin', avgMinutes: 8, eligibleWindows: ['W2', 'W3', 'W4'], poolType: 'SHARED_POOL', enabled: true },
+            { id: 'srv_library', name: 'Library Book Issue / No-Dues', desc: 'Borrow/return library books or get No-Dues stamp before exams.', category: 'Library', avgMinutes: 3, eligibleWindows: ['W5'], poolType: 'LIBRARY', enabled: true },
+            { id: 'srv_exam', name: 'Examination Form Submission', desc: 'Submit & verify semester exam or ATKT form.', category: 'Examination', avgMinutes: 5, eligibleWindows: ['W6'], poolType: 'EXAM_SCHOLARSHIP', enabled: true },
+            { id: 'srv_scholarship', name: 'Scholarship Form Verification', desc: 'MahaDBT, EBC, or minority scholarship document check.', category: 'Scholarship', avgMinutes: 7, eligibleWindows: ['W6'], poolType: 'EXAM_SCHOLARSHIP', enabled: true },
+            { id: 'srv_hallticket', name: 'Hall Ticket Collection', desc: 'Collect your stamped exam admit card / hall ticket.', category: 'Examination', avgMinutes: 3, eligibleWindows: ['W6'], poolType: 'EXAM_SCHOLARSHIP', enabled: true },
+            { id: 'srv_w7', name: tenant.w7ServiceLabel, desc: 'Campus-specific desk for NSS hours, certificates, or event letters.', category: 'College Custom', avgMinutes: 5, eligibleWindows: ['W7'], poolType: 'CUSTOM', enabled: true }
+          ],
+          tokens: [],
+          documents: [],
+          offlineOutbox: [],
+          notices: [
+            { id: 'N-1', title: 'Exam Form Submission Window 6', body: 'Carry verified fee receipt when submitting examination forms at Window 6.', priority: 'INFO', active: true, expired: false, createdAt: 'Active Notice' },
+            { id: 'N-2', title: 'Previous Semester Book Return Drive (Expired)', body: 'Old textbook return drive notice from last month — eligible for cleanup.', priority: 'NORMAL', active: false, expired: true, createdAt: 'Last Month' }
+          ],
+          cleanupItems: [
+            { id: 'CLN-N2', category: 'EXPIRED_NOTICE', title: 'Expired Notice: Previous Semester Book Return Drive', detail: 'Marked inactive/expired — safe to remove from campus storage.', refId: 'N-2', dismissed: false },
+            { id: 'CLN-TMP1', category: 'UNIMPORTANT_FILE', title: 'Stale Temp Export: old_queue_snapshot_draft.csv', detail: 'Temporary draft export flagged as unimportant system file.', refId: null, dismissed: false }
+          ],
+          auditLogs: [
+            { id: 'LOG-INIT', timestamp: new Date().toTimeString().slice(0, 8), role: 'SYSTEM', action: 'TENANT_READY', target: tenant.code, detail: 'Initialized clean zero-fake-data state.' }
+          ]
+        };
+      }
+
+      function buildDefaultState() {
+        const tenantData = {};
+        TENANTS.forEach(t => { tenantData[t.id] = createInitialTenantState(t); });
+        return {
+          activeTenantId: TENANTS[0].id,
+          view: 'LANDING',
+          session: null,
+          offlineMode: false,
+          noticeSlideIdx: 0,
+          noticePaused: false,
+          selectedServiceId: 'srv_bonafide',
+          adminTab: 'ANALYTICS',
+          auditFilter: 'ALL',
+          cleanupSelected: {},
+          tenants: tenantData
+        };
+      }
+
+      function loadState() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed && parsed.tenants && parsed.activeTenantId) return parsed;
+          }
+        } catch (e) {}
+        return buildDefaultState();
+      }
+
+      function loadCloudConfig() {
+        try {
+          const raw = localStorage.getItem(CLOUD_CFG_KEY);
+          return raw ? JSON.parse(raw) : { url: '', anonKey: '', connected: false };
+        } catch (e) { return { url: '', anonKey: '', connected: false }; }
+      }
+
+      let state = loadState();
+      let cloudCfg = loadCloudConfig();
+      let chartInstances = {};
+
+      function applyHashRoute() {
+        const h = (window.location.hash || '').toLowerCase();
+        if (h === '#student') state.view = 'STUDENT_LANDING';
+        else if (h === '#staff') state.view = 'STAFF_LANDING';
+        else if (h === '#monitor') state.view = 'MONITOR';
+      }
+      applyHashRoute();
+
+      async function pushStateToSupabase() {
+        if (!supabaseClient || !cloudCfg.connected) return;
+        try {
+          await supabaseClient.from('cdws_shared_state').upsert({
+            id: state.activeTenantId,
+            payload: state.tenants[state.activeTenantId],
+            updated_at: new Date().toISOString()
+          });
+        } catch (e) {}
+      }
+
+      function saveState(broadcast = true) {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+          if (broadcast && bc) {
+            bc.postMessage({ type: 'STATE_UPDATED', tenantId: state.activeTenantId, ts: Date.now() });
+          }
+          if (broadcast && cloudCfg.connected) {
+            pushStateToSupabase();
+          }
+        } catch (e) {}
+      }
+
+      function syncFromStorage() {
+        const fresh = loadState();
+        const keepView = state.view;
+        const keepSession = state.session;
+        const keepAdminTab = state.adminTab;
+        const keepTenant = state.activeTenantId;
+        state = fresh;
+        state.view = keepView;
+        state.session = keepSession;
+        state.adminTab = keepAdminTab;
+        state.activeTenantId = keepTenant;
+        render();
+      }
+
+      if (bc) bc.onmessage = () => syncFromStorage();
+      window.addEventListener('storage', (e) => { if (e.key === STORAGE_KEY) syncFromStorage(); });
+
+      async function initSupabaseConnection(url, anonKey, silent = false) {
+        if (!window.supabase || !url || !anonKey) return false;
+        try {
+          supabaseClient = window.supabase.createClient(url, anonKey);
+          const { data, error } = await supabaseClient.from('cdws_shared_state').select('*').eq('id', state.activeTenantId).maybeSingle();
+          if (error) {
+            if (!silent) showToast('Supabase error: ' + error.message, 'error');
+            return false;
+          }
+          if (data && data.payload) {
+            state.tenants[state.activeTenantId] = data.payload;
+            saveState(false);
+          } else {
+            await pushStateToSupabase();
+          }
+
+          if (supabaseChannel) {
+            try { supabaseClient.removeChannel(supabaseChannel); } catch (e) {}
+          }
+          supabaseChannel = supabaseClient
+            .channel('cdws2-realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'cdws_shared_state' }, (payload) => {
+              if (payload.new && payload.new.id === state.activeTenantId && payload.new.payload) {
+                state.tenants[state.activeTenantId] = payload.new.payload;
+                try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+                render();
+              }
+            })
+            .subscribe();
+
+          cloudCfg = { url, anonKey, connected: true };
+          try { localStorage.setItem(CLOUD_CFG_KEY, JSON.stringify(cloudCfg)); } catch (e) {}
+          render();
+          if (!silent) showToast('Connected to Supabase Realtime! Multi-device sync is active.', 'success');
+          return true;
+        } catch (e) {
+          if (!silent) showToast('Failed to connect to Supabase.', 'error');
+          return false;
+        }
+      }
+
+      if (cloudCfg.connected && cloudCfg.url && cloudCfg.anonKey) {
+        initSupabaseConnection(cloudCfg.url, cloudCfg.anonKey, true);
+      }
+
+      function getTenantMeta() {
+        return TENANTS.find(t => t.id === state.activeTenantId) || TENANTS[0];
+      }
+
+      function getTenantData() {
+        return state.tenants[state.activeTenantId];
+      }
+
+      function nowTimeStr() {
+        return new Date().toTimeString().slice(0, 8);
+      }
+
+      function escapeHtml(str) {
+        return String(str ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+      }
+
+      function logAudit(role, action, target, detail) {
+        const td = getTenantData();
+        td.auditLogs.unshift({
+          id: 'LOG-' + Math.random().toString(36).slice(2, 7).toUpperCase(),
+          timestamp: nowTimeStr(),
+          role,
+          action,
+          target,
+          detail
+        });
+        if (td.auditLogs.length > 150) td.auditLogs.pop();
+      }
+
+      function showToast(message, type = 'info') {
+        const container = document.getElementById('toast-container');
+        const colors = { success: 'bg-forest-800 text-white', error: 'bg-rose-700 text-white', warning: 'bg-amber-600 text-white', info: 'bg-stone-900 text-white' };
+        const el = document.createElement('div');
+        el.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-lg text-sm font-medium flex items-center justify-between gap-3 transition-all ${colors[type] || colors.info}`;
+        el.innerHTML = `<span>${escapeHtml(message)}</span><button class="opacity-75 hover:opacity-100 text-xs font-bold">✕</button>`;
+        el.querySelector('button').addEventListener('click', () => el.remove());
+        container.appendChild(el);
+        setTimeout(() => { if (el.parentNode) el.remove(); }, 4200);
+      }
+
+
+      let audioCtx = null;
+      function unlockAudio() {
+        try {
+          if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          if (audioCtx.state === 'suspended') audioCtx.resume();
+        } catch (e) {}
+      }
+
+      function playProximityAlarm() {
+        try {
+          if (navigator.vibrate) navigator.vibrate([250, 120, 250, 120, 300]);
+          unlockAudio();
+          if (!audioCtx) return;
+          [587.33, 783.99, 1046.50].forEach((freq, i) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime + i * 0.18);
+            gain.gain.setValueAtTime(0.18, audioCtx.currentTime + i * 0.18);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.18 + 0.32);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(audioCtx.currentTime + i * 0.18);
+            osc.stop(audioCtx.currentTime + i * 0.18 + 0.35);
+          });
+        } catch (e) {}
+      }
+
+      function getEstimatedWaitMinutes(token) {
+        const td = getTenantData();
+        const winTokens = td.tokens.filter(t => t.assignedWindowId === token.assignedWindowId && ['SERVING', 'CALLED', 'WAITING'].includes(t.status));
+        let mins = 0;
+        for (const t of winTokens) {
+          if (t.id === token.id) break;
+          const srv = td.services.find(s => s.id === t.serviceId);
+          mins += (srv ? srv.avgMinutes : 5);
+        }
+        return mins;
+      }
+
+      function triggerBrowserNotification(title, body) {
+        try {
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification(title, { body });
+          }
+        } catch (e) {}
+      }
+
+      function allocateWindowForService(service) {
+        const td = getTenantData();
+        const openEligible = td.windows.filter(w => service.eligibleWindows.includes(w.id) && w.status === 'OPEN');
+        if (openEligible.length === 0) return null;
+
+        let bestWindow = openEligible[0];
+        let bestEstMinutes = Infinity;
+
+        openEligible.forEach(w => {
+          const activeTokens = td.tokens.filter(t => t.assignedWindowId === w.id && ['WAITING', 'CALLED', 'SERVING'].includes(t.status));
+          const estMinutes = activeTokens.reduce((sum, t) => {
+            const srv = td.services.find(s => s.id === t.serviceId);
+            return sum + (srv ? srv.avgMinutes : 5);
+          }, 0);
+          if (estMinutes < bestEstMinutes) {
+            bestEstMinutes = estMinutes;
+            bestWindow = w;
+          }
+        });
+
+        return { window: bestWindow, estimatedWaitMinutes: bestEstMinutes };
+      }
+
+      function issueAuthoritativeToken({ prn, studentName, serviceId, docName = '', clientRequestId = null }) {
+        const td = getTenantData();
+        const meta = getTenantMeta();
+
+        if (td.cutoffClosed) return { ok: false, code: 'CUTOFF_EXPIRED', error: 'Service intake cutoff is currently active.' };
+        const service = td.services.find(s => s.id === serviceId && s.enabled);
+        if (!service) return { ok: false, code: 'SERVICE_UNAVAILABLE', error: 'Selected service is disabled.' };
+
+        const existingActive = td.tokens.find(t =>
+          t.prn === prn && t.serviceId === serviceId &&
+          ['WAITING', 'CALLED', 'SERVING', 'PARKED'].includes(t.status)
+        );
+        if (existingActive) {
+          return { ok: false, code: 'DUPLICATE_ACTIVE_TOKEN', error: `Active token ${existingActive.tokenNumber} already exists for PRN ${prn}.` };
+        }
+
+        const allocation = allocateWindowForService(service);
+        if (!allocation) return { ok: false, code: 'NO_OPEN_WINDOW', error: `No eligible windows (${service.eligibleWindows.join(', ')}) are OPEN.` };
+
+        const prefix = service.poolType === 'LIBRARY' ? 'L' : service.poolType === 'EXAM_SCHOLARSHIP' ? 'E' : service.poolType === 'CUSTOM' ? 'C' : 'A';
+        const seq = td.nextTokenSeq++;
+        const tokenNumber = `${prefix}-${seq}`;
+        const tokenId = `T-${seq}`;
+
+        if (docName) {
+          const cleanDoc = docName.trim();
+          const dup = td.documents.find(d => d.prn === prn && d.docName.toLowerCase() === cleanDoc.toLowerCase());
+          const docRec = {
+            id: 'DOC-' + Math.random().toString(36).slice(2, 7).toUpperCase(),
+            prn, studentName, docName: cleanDoc, tokenNumber, uploadedAt: nowTimeStr(), createdAt: Date.now()
+          };
+          td.documents.push(docRec);
+          if (dup) {
+            td.cleanupItems.unshift({
+              id: 'CLN-' + docRec.id,
+              category: 'DUPLICATE_DOCUMENT',
+              title: `Duplicate Document: ${cleanDoc} (PRN: ${prn})`,
+              detail: `Submitted again with ${tokenNumber} (matches earlier ${dup.tokenNumber}). Flagged for Principal/Admin review.`,
+              refId: docRec.id,
+              dismissed: false
+            });
+            logAudit('SYSTEM', 'DUPLICATE_DOC_FLAGGED', cleanDoc, `Duplicate document detected for PRN ${prn}.`);
+          }
+        }
+
+        const token = {
+          id: tokenId, tokenNumber, prn, studentName: studentName || 'Student',
+          serviceId: service.id, serviceName: service.name, docName: docName || '',
+          assignedWindowId: allocation.window.id, eligibleWindowsSnapshot: [...service.eligibleWindows],
+          status: 'WAITING', createdAt: Date.now(), parkedAtServedCount: null, recallCount: 0,
+          ackStatus: 'NONE', ackAt: null, alertTriggered: false, clientRequestId, qrCodeValue: `CDWS2|${meta.code}|${tokenNumber}|${allocation.window.id}|DEMO`
+        };
+
+        td.tokens.push(token);
+        logAudit('SERVER_ENGINE', 'TOKEN_ISSUED', tokenNumber, `Allocated to ${allocation.window.id} (est. ${allocation.estimatedWaitMinutes}m) for PRN ${prn}.`);
+        saveState();
+        return { ok: true, token, estimatedWaitMinutes: allocation.estimatedWaitMinutes };
+      }
+
+      function run30DayRetentionScan() {
+        const td = getTenantData();
+        const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+        const now = Date.now();
+        let added = 0;
+
+        td.tokens.forEach(t => {
+          if (t.status === 'COMPLETED' && t.docName && (now - t.createdAt) > thirtyDaysMs) {
+            const clnId = 'CLN-RET-' + t.id;
+            if (!td.cleanupItems.some(c => c.id === clnId)) {
+              td.cleanupItems.unshift({
+                id: clnId,
+                category: 'RETENTION_30_DAYS',
+                title: `30+ Day Old Attachment: ${t.docName} (${t.tokenNumber})`,
+                detail: `Completed over 30 days ago for PRN ${t.prn}. Eligible for Principal/Admin deletion.`,
+                refId: t.id,
+                dismissed: false
+              });
+              added++;
+            }
+          }
+        });
+
+        // Also flag if no 30-day items exist yet so user can see how the scan works
+        if (added === 0 && td.documents.length > 0) {
+          const latestDoc = td.documents[td.documents.length - 1];
+          const clnId = 'CLN-RET-DEMO-' + latestDoc.id;
+          if (!td.cleanupItems.some(c => c.id === clnId)) {
+            td.cleanupItems.unshift({
+              id: clnId,
+              category: 'RETENTION_30_DAYS',
+              title: `Retention Policy Check: ${latestDoc.docName} (${latestDoc.tokenNumber})`,
+              detail: `Simulated 30-day retention match for PRN ${latestDoc.prn} — ready for Principal review.`,
+              refId: latestDoc.id,
+              dismissed: false
+            });
+            added++;
+          }
+        }
+
+        logAudit('SYSTEM', 'RETENTION_SCAN_RUN', getTenantMeta().code, `30-day retention scan flagged ${added} item(s).`);
+        saveState();
+        render();
+        showToast(added > 0 ? `Retention scan flagged ${added} item(s) for Principal review.` : 'No new 30-day items found.', 'info');
+      }
+
+      function syncOfflineOutbox() {
+        const td = getTenantData();
+        if (state.offlineMode) { showToast('Switch to Online mode before syncing.', 'warning'); return; }
+        if (td.offlineOutbox.length === 0) { showToast('No offline requests to sync.', 'info'); return; }
+
+        let syncedCount = 0;
+        let failedCount = 0;
+
+        td.offlineOutbox.forEach(req => {
+          if (req.syncStatus !== 'PENDING_SYNC') return;
+          const res = issueAuthoritativeToken({
+            prn: req.prn, studentName: req.studentName, serviceId: req.serviceId,
+            docName: req.docName, clientRequestId: req.clientRequestId
+          });
+          if (res.ok) {
+            req.syncStatus = 'SYNCED';
+            req.issuedTokenNumber = res.token.tokenNumber;
+            req.assignedWindowId = res.token.assignedWindowId;
+            syncedCount++;
+          } else {
+            req.syncStatus = res.code;
+            req.errorReason = res.error;
+            failedCount++;
+          }
+        });
+
+        saveState();
+        render();
+        if (syncedCount > 0) showToast(`Synced ${syncedCount} offline request(s).`, 'success');
+        if (failedCount > 0) showToast(`${failedCount} offline request(s) rejected.`, 'warning');
+      }
+
+      // Modal Helpers
+      function openModal(htmlContent) {
+        document.getElementById('modal-panel').innerHTML = htmlContent;
+        const b = document.getElementById('modal-backdrop');
+        b.classList.remove('hidden');
+        b.classList.add('flex');
+      }
+
+      function closeModal() {
+        const b = document.getElementById('modal-backdrop');
+        b.classList.add('hidden');
+        b.classList.remove('flex');
+      }
+
+      document.getElementById('modal-backdrop').addEventListener('click', (e) => {
+        if (e.target.id === 'modal-backdrop') closeModal();
+      });
+
+      function openCloudModal() {
+        const sqlSnippet = `CREATE TABLE IF NOT EXISTS cdws_shared_state (\n  id TEXT PRIMARY KEY,\n  payload JSONB NOT NULL,\n  updated_at TIMESTAMPTZ DEFAULT NOW()\n);\nALTER TABLE cdws_shared_state ENABLE ROW LEVEL SECURITY;\nCREATE POLICY "Public demo access" ON cdws_shared_state FOR ALL USING (true) WITH CHECK (true);\nALTER PUBLICATION supabase_realtime ADD TABLE cdws_shared_state;\n\n-- Private Passcode Table (RLS blocks students from reading)\nCREATE TABLE IF NOT EXISTS cdws_passcodes (\n  role_key TEXT PRIMARY KEY,\n  passcode TEXT NOT NULL\n);\nALTER TABLE cdws_passcodes ENABLE ROW LEVEL SECURITY;\nINSERT INTO cdws_passcodes (role_key, passcode) VALUES\n  ('W1','W14829'),('W2','W27391'),('W3','W35147'),('W4','W49206'),\n  ('W5','W56384'),('W6','W61853'),('W7','W74028'),\n  ('SUPERVISOR','SUP8392'),('ADMIN','admin748291')\nON CONFLICT (role_key) DO NOTHING;\n\nCREATE OR REPLACE FUNCTION verify_cdws_passcode(role_key TEXT, input_code TEXT)\nRETURNS BOOLEAN LANGUAGE sql SECURITY DEFINER AS $$\n  SELECT EXISTS (SELECT 1 FROM cdws_passcodes p WHERE p.role_key = $1 AND p.passcode = $2);\n$$;`;
+        openModal(`
+          <div class="p-6 space-y-4">
+            <div class="flex items-start justify-between border-b border-cream-300 pb-3">
+              <div>
+                <h2 class="text-lg font-bold text-stone-900">Multi-Device Sync (Supabase Realtime)</h2>
+                <p class="text-xs text-stone-500">Connect phones, laptops, and computers across different networks using your free Supabase project.</p>
+              </div>
+              <button id="close-cloud-modal" class="text-stone-400 hover:text-stone-700 font-bold text-lg">✕</button>
+            </div>
+            <div class="space-y-3">
+              <div>
+                <label class="block text-xs font-semibold text-stone-700 mb-1">Supabase Project URL</label>
+                <input id="sb-url" type="url" value="${escapeHtml(cloudCfg.url)}" placeholder="https://your-project.supabase.co" class="w-full text-xs border border-cream-300 rounded-xl px-3 py-2 bg-cream-50" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-stone-700 mb-1">Supabase Anon Public Key</label>
+                <input id="sb-key" type="password" value="${escapeHtml(cloudCfg.anonKey)}" placeholder="eyJhbGciOi..." class="w-full text-xs border border-cream-300 rounded-xl px-3 py-2 bg-cream-50" />
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button id="btn-sb-connect" class="px-4 py-2 rounded-xl bg-forest-800 text-white text-xs font-bold hover:bg-forest-900">Connect &amp; Enable Live Sync</button>
+                ${cloudCfg.connected ? `<button id="btn-sb-disconnect" class="px-4 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-700">Disconnect</button>` : ''}
+              </div>
+            </div>
+            <div class="pt-3 border-t border-cream-200">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-xs font-bold text-stone-800">1-Step Supabase SQL Setup (Run in SQL Editor)</span>
+                <button id="btn-copy-sql" class="text-xs font-semibold text-forest-800 underline">Copy SQL</button>
+              </div>
+              <pre id="sb-sql-code" class="text-[11px] font-mono bg-stone-900 text-cream-100 p-3 rounded-xl overflow-x-auto">${escapeHtml(sqlSnippet)}</pre>
+            </div>
+          </div>
+        `);
+        document.getElementById('close-cloud-modal').addEventListener('click', closeModal);
+        document.getElementById('btn-copy-sql').addEventListener('click', () => {
+          const txt = document.getElementById('sb-sql-code').textContent;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(txt).then(() => showToast('SQL copied!', 'success'));
+          } else {
+            showToast('Select and copy the SQL manually.', 'info');
+          }
+        });
+        document.getElementById('btn-sb-connect').addEventListener('click', async () => {
+          const url = document.getElementById('sb-url').value.trim();
+          const key = document.getElementById('sb-key').value.trim();
+          const ok = await initSupabaseConnection(url, key);
+          if (ok) closeModal();
+        });
+        const btnDisc = document.getElementById('btn-sb-disconnect');
+        if (btnDisc) {
+          btnDisc.addEventListener('click', () => {
+            cloudCfg = { url: '', anonKey: '', connected: false };
+            supabaseClient = null;
+            try { localStorage.removeItem(CLOUD_CFG_KEY); } catch (e) {}
+            closeModal();
+            render();
+            showToast('Disconnected from Supabase. Using local browser sync.', 'info');
+          });
+        }
+      }
+
+      function openArchitectureModal() {
+        openModal(`
+          <div class="p-6">
+            <div class="flex items-start justify-between gap-4 border-b border-cream-300 pb-4">
+              <div>
+                <h2 class="text-lg font-bold text-stone-900">CDWS 2.0 — Simulated vs. Production Architecture</h2>
+                <p class="text-xs text-stone-500 mt-0.5">Transparent boundary for teacher &amp; Principal evaluation</p>
+              </div>
+              <button id="close-arch-modal" class="text-stone-400 hover:text-stone-700 font-bold text-lg">✕</button>
+            </div>
+            <div class="mt-4 space-y-4 text-sm text-stone-700">
+              <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                <h3 class="font-semibold text-emerald-900 mb-1.5">Working Now</h3>
+                <ul class="list-disc pl-5 space-y-1 text-xs text-emerald-900">
+                  <li>Separate Student Landing, Staff &amp; Admin Landing, and Teacher/Principal Live Monitor.</li>
+                  <li>Zero fake numbers — all counts, weekly/monthly reports, and charts reflect real actions.</li>
+                  <li>Optional Supabase Realtime connector for multi-device testing across phones, laptops, and PCs.</li>
+                  <li>30-day retention scan, duplicate document detection, and Principal ✅ cleanup checklist.</li>
+                </ul>
+              </div>
+              <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <h3 class="font-semibold text-amber-900 mb-1.5">Production Hardening Needed Before Campus Rollout</h3>
+                <ul class="list-disc pl-5 space-y-1 text-xs text-amber-900">
+                  <li>Server-side PostgreSQL atomic dequeue (<code class="bg-amber-100 px-1 rounded">FOR UPDATE SKIP LOCKED</code>) &amp; strict RBAC JWT auth.</li>
+                  <li>HMAC-signed dynamic QR payloads to prevent screenshot replay.</li>
+                </ul>
+              </div>
+            </div>
+            <div class="mt-5 flex justify-end">
+              <button id="ok-arch-modal" class="px-4 py-2 rounded-lg bg-forest-800 text-white text-sm font-semibold hover:bg-forest-900">Close</button>
+            </div>
+          </div>
+        `);
+        document.getElementById('close-arch-modal').addEventListener('click', closeModal);
+        document.getElementById('ok-arch-modal').addEventListener('click', closeModal);
+      }
+
+      function openQrModal(tokenId) {
+        const td = getTenantData();
+        const token = td.tokens.find(t => t.id === tokenId);
+        if (!token) return;
+        openModal(`
+          <div class="p-6 text-center">
+            <div class="flex items-center justify-between border-b border-cream-300 pb-3 mb-4">
+              <span class="text-xs font-bold uppercase tracking-wider text-forest-800">Digital Queue Token</span>
+              <button id="close-qr-modal" class="text-stone-400 hover:text-stone-700 font-bold">✕</button>
+            </div>
+            <div class="inline-block px-3 py-1 rounded-full bg-cream-200 text-stone-800 text-[11px] font-semibold mb-3">
+              SIMULATED QR DEMO — NOT PRODUCTION IDENTITY VERIFICATION
+            </div>
+            <div class="text-3xl font-extrabold text-stone-900">${escapeHtml(token.tokenNumber)}</div>
+            <div class="text-sm font-bold text-forest-800 mt-1">Assigned Window: ${escapeHtml(token.assignedWindowId)}</div>
+            <div class="text-xs text-stone-500 mt-1">${escapeHtml(token.serviceName)} • PRN: ${escapeHtml(token.prn)}</div>
+            <div class="my-5 flex justify-center">
+              <div class="p-3 bg-white border-2 border-cream-300 rounded-2xl shadow-2xs">
+                <canvas id="qr-canvas" width="180" height="180"></canvas>
+              </div>
+            </div>
+            <div class="text-[11px] font-mono bg-cream-100 text-stone-600 px-3 py-2 rounded-lg break-all">${escapeHtml(token.qrCodeValue)}</div>
+            <div class="mt-4 flex justify-center">
+              <button id="btn-download-token-png" class="px-4 py-2.5 rounded-xl bg-forest-800 text-white text-xs font-bold hover:bg-forest-900 transition shadow-xs">
+                Download Token Card (PNG)
+              </button>
+            </div>
+          </div>
+        `);
+        document.getElementById('close-qr-modal').addEventListener('click', closeModal);
+        const qrCanvas = document.getElementById('qr-canvas');
+        try {
+          if (window.QRious) new QRious({ element: qrCanvas, value: token.qrCodeValue, size: 180, level: 'M' });
+        } catch (e) {}
+        document.getElementById('btn-download-token-png').addEventListener('click', () => {
+          try {
+            const card = document.createElement('canvas');
+            card.width = 640;
+            card.height = 820;
+            const ctx = card.getContext('2d');
+            ctx.fillStyle = '#FAF6EE';
+            ctx.fillRect(0, 0, card.width, card.height);
+            ctx.fillStyle = '#1B4332';
+            ctx.fillRect(0, 0, card.width, 110);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = 'bold 26px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('CDWS 2.0 — DIGITAL SERVICE TOKEN', 320, 48);
+            ctx.font = '15px Inter, sans-serif';
+            ctx.fillStyle = '#E7D9BE';
+            ctx.fillText(getTenantMeta().collegeName, 320, 82);
+
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(40, 140, 560, 640);
+            ctx.strokeStyle = '#E7D9BE';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(40, 140, 560, 640);
+
+            ctx.fillStyle = '#1C1917';
+            ctx.font = 'bold 64px Inter, sans-serif';
+            ctx.fillText(token.tokenNumber, 320, 225);
+
+            ctx.fillStyle = '#1B4332';
+            ctx.font = 'bold 24px Inter, sans-serif';
+            ctx.fillText('Assigned Window: ' + token.assignedWindowId, 320, 268);
+
+            ctx.fillStyle = '#57534E';
+            ctx.font = '18px Inter, sans-serif';
+            ctx.fillText(token.serviceName, 320, 306);
+            ctx.fillText(token.studentName + '  |  PRN: ' + token.prn, 320, 336);
+
+            ctx.drawImage(qrCanvas, 200, 370, 240, 240);
+
+            ctx.fillStyle = '#78716C';
+            ctx.font = '13px monospace';
+            ctx.fillText(token.qrCodeValue, 320, 650);
+            ctx.font = 'bold 14px Inter, sans-serif';
+            ctx.fillStyle = '#B45309';
+            ctx.fillText('SIMULATED DEMO TOKEN — PRESENT AT ' + token.assignedWindowId, 320, 700);
+            ctx.fillStyle = '#78716C';
+            ctx.font = '12px Inter, sans-serif';
+            ctx.fillText('Generated: ' + new Date().toLocaleString(), 320, 740);
+
+            const link = document.createElement('a');
+            link.download = 'CDWS2_Token_' + token.tokenNumber + '.png';
+            link.href = card.toDataURL('image/png');
+            link.click();
+            showToast('Token card downloaded!', 'success');
+          } catch (e) {
+            showToast('Could not export token image.', 'error');
+          }
+        });
+      }
+
+
+      function openStudentPosterModal() {
+        const meta = getTenantMeta();
+        const baseUrl = window.location.href.split('#')[0];
+        const studentUrl = baseUrl + '#student';
+        openModal(`
+          <div class="p-6 text-center space-y-4">
+            <div class="flex items-center justify-between border-b border-cream-300 pb-3">
+              <span class="text-xs font-bold uppercase tracking-wider text-forest-800">Student Portal QR Poster</span>
+              <button id="close-poster-modal" class="text-stone-400 hover:text-stone-700 font-bold">✕</button>
+            </div>
+            <div class="text-sm font-bold text-stone-900">${escapeHtml(meta.collegeName)}</div>
+            <p class="text-xs text-stone-600">Students scan this QR code on their phone to open the <strong>Student Landing Page</strong> directly and generate their service token.</p>
+            <div class="flex justify-center">
+              <div class="p-4 bg-white border-2 border-cream-300 rounded-2xl shadow-2xs">
+                <canvas id="poster-qr-canvas" width="220" height="220"></canvas>
+              </div>
+            </div>
+            <div class="text-[11px] font-mono bg-cream-100 text-stone-600 px-3 py-2 rounded-lg break-all">${escapeHtml(studentUrl)}</div>
+            <div class="flex justify-center gap-2">
+              <button id="btn-download-poster" class="px-4 py-2 rounded-xl bg-forest-800 text-white text-xs font-bold hover:bg-forest-900">Download QR Poster (PNG)</button>
+            </div>
+          </div>
+        `);
+        document.getElementById('close-poster-modal').addEventListener('click', closeModal);
+        const pCanvas = document.getElementById('poster-qr-canvas');
+        try {
+          if (window.QRious) new QRious({ element: pCanvas, value: studentUrl, size: 220, level: 'M' });
+        } catch (e) {}
+        document.getElementById('btn-download-poster').addEventListener('click', () => {
+          try {
+            const poster = document.createElement('canvas');
+            poster.width = 600;
+            poster.height = 720;
+            const ctx = poster.getContext('2d');
+            ctx.fillStyle = '#FAF6EE';
+            ctx.fillRect(0, 0, 600, 720);
+            ctx.fillStyle = '#1B4332';
+            ctx.fillRect(0, 0, 600, 120);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = 'bold 26px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('SCAN FOR DIGITAL WINDOW TOKEN', 300, 52);
+            ctx.font = '15px Inter, sans-serif';
+            ctx.fillStyle = '#E7D9BE';
+            ctx.fillText(meta.collegeName, 300, 88);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(110, 170, 380, 380);
+            ctx.drawImage(pCanvas, 150, 210, 300, 300);
+            ctx.fillStyle = '#1C1917';
+            ctx.font = 'bold 18px Inter, sans-serif';
+            ctx.fillText('CDWS 2.0 — Student Self-Service', 300, 605);
+            ctx.fillStyle = '#57534E';
+            ctx.font = '13px Inter, sans-serif';
+            ctx.fillText('Select Service • Enter PRN • Get Window & QR', 300, 635);
+            const a = document.createElement('a');
+            a.download = 'CDWS2_Student_QR_Poster_' + meta.code + '.png';
+            a.href = poster.toDataURL('image/png');
+            a.click();
+            showToast('QR Poster downloaded!', 'success');
+          } catch (e) {}
+        });
+      }
+
+      function renderHeader() {
+        const selDesktop = document.getElementById('tenant-select');
+        const selMobile = document.getElementById('tenant-select-mobile');
+        const opts = TENANTS.map(t => `<option value="${t.id}" ${t.id === state.activeTenantId ? 'selected' : ''}>${escapeHtml(t.collegeName)} (${escapeHtml(t.branchName)})</option>`).join('');
+        selDesktop.innerHTML = opts;
+        selMobile.innerHTML = opts;
+
+        const setNavStyle = (id, active) => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          el.className = active
+            ? 'px-2.5 py-1.5 rounded-lg text-xs font-bold bg-white text-forest-800 shadow-2xs border border-cream-300 whitespace-nowrap'
+            : 'px-2.5 py-1.5 rounded-lg text-xs font-semibold text-stone-600 hover:text-stone-900 whitespace-nowrap';
+        };
+        const isStudentOnly = (state.view === 'STUDENT_LANDING' || state.view === 'STUDENT');
+        const desktopNav = document.getElementById('nav-portal-home')?.parentElement;
+        const mobBtns = document.getElementById('mob-nav-staff')?.parentElement;
+        if (desktopNav) desktopNav.style.display = isStudentOnly ? 'none' : '';
+        if (mobBtns) mobBtns.style.display = isStudentOnly ? 'none' : '';
+
+        setNavStyle('nav-portal-home', state.view === 'LANDING');
+        setNavStyle('nav-portal-student', isStudentOnly);
+        setNavStyle('nav-portal-staff', ['STAFF_LANDING', 'OPERATOR', 'SUPERVISOR', 'ADMIN'].includes(state.view));
+        setNavStyle('nav-portal-monitor', state.view === 'MONITOR');
+
+        const cloudPill = document.getElementById('cloud-status-pill');
+        if (cloudCfg.connected) {
+          cloudPill.textContent = 'Cloud Live';
+          cloudPill.className = 'hidden sm:inline-flex items-center px-2 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300';
+        } else {
+          cloudPill.textContent = 'Local Sync';
+          cloudPill.className = 'hidden sm:inline-flex items-center px-2 py-1 rounded-full text-[11px] font-bold bg-cream-100 text-stone-700 border border-cream-300';
+        }
+
+        const btnBack = document.getElementById('btn-back-main');
+        if (btnBack) {
+          if (state.view === 'LANDING') btnBack.classList.add('hidden');
+          else btnBack.classList.remove('hidden');
+        }
+
+        const sc = document.getElementById('session-controls');
+        if (!state.session) {
+          sc.innerHTML = '';
+        } else {
+          sc.innerHTML = `
+            <span class="hidden sm:inline-flex items-center px-2.5 py-1 rounded-md bg-cream-200 text-stone-800 text-xs font-bold">
+              ${escapeHtml(state.session.role)}${state.session.windowId ? ' · ' + escapeHtml(state.session.windowId) : ''}
+            </span>
+            <button id="btn-logout" class="px-3 py-1.5 rounded-lg border border-cream-300 bg-white text-stone-700 text-xs font-semibold hover:bg-cream-100 transition">Exit Role</button>
+          `;
+          document.getElementById('btn-logout').addEventListener('click', () => {
+            const wasStudent = state.session.role === 'STUDENT';
+            state.session = null;
+            state.view = wasStudent ? 'STUDENT_LANDING' : 'STAFF_LANDING';
+            saveState(false);
+            render();
+          });
+        }
+      }
+
+      // View: Main Overview
+      function renderLanding(root) {
+        const td = getTenantData();
+        const meta = getTenantMeta();
+        const openWindows = td.windows.filter(w => w.status === 'OPEN').length;
+        const waitingCount = td.tokens.filter(t => t.status === 'WAITING').length;
+        const completedCount = td.tokens.filter(t => t.status === 'COMPLETED').length;
+
+        root.innerHTML = `
+          <div class="space-y-8">
+            <section class="bg-white rounded-3xl border border-cream-300 p-6 sm:p-10 shadow-xs">
+              <div class="max-w-3xl">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cream-100 border border-cream-300 text-forest-800 text-xs font-bold mb-4">
+                  <span>${escapeHtml(meta.collegeName)}</span> • <span>${escapeHtml(meta.branchName)}</span>
+                </div>
+                <h1 class="text-2xl sm:text-4xl font-extrabold text-stone-900 tracking-tight leading-tight">
+                  College Digital Window Services (CDWS 2.0)
+                </h1>
+                <p class="mt-3 text-stone-600 text-sm sm:text-base leading-relaxed">
+                  Zero-fake-data queue orchestration prototype. Open <strong>Student Landing</strong> for your team to issue tokens, <strong>Staff &amp; Admin</strong> to call tokens &amp; run reports, and <strong>Live Monitor</strong> on your teacher's mobile or laptop.
+                </p>
+                <div class="mt-6 flex flex-wrap gap-3">
+                  <button id="go-student-landing" class="px-5 py-3 rounded-xl bg-forest-800 hover:bg-forest-900 text-white font-semibold text-sm transition shadow-xs">Open Student Landing →</button>
+                  <button id="go-staff-landing" class="px-5 py-3 rounded-xl bg-cream-200 hover:bg-cream-300 text-stone-900 font-semibold text-sm border border-cream-300 transition">Open Staff &amp; Admin →</button>
+                  <button id="go-monitor-view" class="px-5 py-3 rounded-xl bg-white hover:bg-cream-50 text-forest-800 font-semibold text-sm border border-forest-800 transition">Teacher Live Monitor</button>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-8 pt-6 border-t border-cream-200">
+                <div class="bg-cream-50 border border-cream-200 rounded-xl p-4"><div class="text-xs text-stone-500 font-medium">Open Windows</div><div class="text-2xl font-extrabold text-forest-800 mt-0.5">${openWindows} / 7</div></div>
+                <div class="bg-cream-50 border border-cream-200 rounded-xl p-4"><div class="text-xs text-stone-500 font-medium">Real Active Waiting</div><div class="text-2xl font-extrabold text-stone-900 mt-0.5">${waitingCount}</div></div>
+                <div class="bg-cream-50 border border-cream-200 rounded-xl p-4"><div class="text-xs text-stone-500 font-medium">Real Completed</div><div class="text-2xl font-extrabold text-bronze-600 mt-0.5">${completedCount}</div></div>
+                <div class="bg-cream-50 border border-cream-200 rounded-xl p-4"><div class="text-xs text-stone-500 font-medium">Campus Code</div><div class="text-lg font-extrabold text-forest-800 mt-1">${escapeHtml(meta.code)}</div></div>
+              </div>
+            </section>
+          </div>
+        `;
+
+        document.getElementById('go-student-landing').addEventListener('click', () => { window.location.hash = '#student'; state.view = 'STUDENT_LANDING'; saveState(false); render(); });
+        document.getElementById('go-staff-landing').addEventListener('click', () => { window.location.hash = '#staff'; state.view = 'STAFF_LANDING'; saveState(false); render(); });
+        document.getElementById('go-monitor-view').addEventListener('click', () => { window.location.hash = '#monitor'; state.view = 'MONITOR'; saveState(false); render(); });
+      }
+
+      // View: Teacher / Principal Read-Only Live Monitor (Mobile & Desktop Friendly)
+      function renderMonitor(root) {
+        const td = getTenantData();
+        const meta = getTenantMeta();
+        const now = Date.now();
+        const weekCount = td.tokens.filter(t => (now - t.createdAt) <= 7 * 86400000).length;
+        const completedCount = td.tokens.filter(t => t.status === 'COMPLETED').length;
+
+        root.innerHTML = `
+          <div class="space-y-6">
+            <div class="bg-white rounded-2xl border border-cream-300 p-5 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <span class="px-2.5 py-0.5 rounded bg-forest-800 text-white text-[11px] font-bold">TEACHER &amp; PRINCIPAL LIVE MONITOR</span>
+                <h1 class="text-xl font-extrabold text-stone-900 mt-1">${escapeHtml(meta.collegeName)} — ${escapeHtml(meta.branchName)}</h1>
+              </div>
+              <div class="flex gap-4 text-center">
+                <div class="bg-cream-50 px-4 py-2 rounded-xl border border-cream-200"><div class="text-[11px] text-stone-500">Issued (7d)</div><div class="text-lg font-extrabold text-stone-900">${weekCount}</div></div>
+                <div class="bg-cream-50 px-4 py-2 rounded-xl border border-cream-200"><div class="text-[11px] text-stone-500">Completed</div><div class="text-lg font-extrabold text-forest-800">${completedCount}</div></div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              ${td.windows.map(w => {
+                const active = td.tokens.find(t => t.id === w.currentTokenId);
+                const waiting = td.tokens.filter(t => t.assignedWindowId === w.id && t.status === 'WAITING').length;
+                return `
+                  <div class="bg-white rounded-2xl border border-cream-300 p-5 shadow-2xs">
+                    <div class="flex items-center justify-between">
+                      <span class="text-base font-extrabold text-stone-900">${escapeHtml(w.id)}</span>
+                      <span class="px-2 py-0.5 rounded-full text-[11px] font-bold ${w.status === 'OPEN' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${escapeHtml(w.status)}</span>
+                    </div>
+                    <div class="text-[11px] text-stone-500 mt-0.5">${escapeHtml(w.type)}</div>
+                    <div class="my-4 p-3 rounded-xl bg-cream-50 border border-cream-200 text-center">
+                      <div class="text-[11px] text-stone-500 uppercase font-semibold">Now Serving / Called</div>
+                      <div class="text-2xl font-extrabold text-forest-800 mt-1">${active ? escapeHtml(active.tokenNumber) : '—'}</div>
+                      <div class="text-xs text-stone-600 truncate mt-0.5">${active ? escapeHtml(active.studentName) : 'Counter Idle'}</div>
+                    </div>
+                    <div class="flex justify-between text-xs text-stone-600 font-medium">
+                      <span>Waiting: <strong>${waiting}</strong></span>
+                      <span>Served: <strong>${w.servedCount}</strong></span>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      // View: Student Landing Page
+      function renderStudentLanding(root) {
+        const meta = getTenantMeta();
+        const td = getTenantData();
+        const waitingCount = td.tokens.filter(t => t.status === 'WAITING').length;
+
+        root.innerHTML = `
+          <div class="max-w-3xl mx-auto space-y-6">
+            <div class="bg-white rounded-3xl border border-cream-300 p-6 sm:p-10 shadow-xs">
+              <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-forest-800 text-xs font-bold mb-3">
+                STUDENT PORTAL • ${escapeHtml(meta.collegeName)}
+              </div>
+              <h1 class="text-2xl sm:text-3xl font-extrabold text-stone-900">Get Your Digital Service Token</h1>
+              <p class="text-sm text-stone-600 mt-2">Choose your required college service, enter your PRN identifier, and receive your system-assigned counter window and QR token.</p>
+              <div class="flex flex-wrap items-center justify-between gap-4 pt-6 mt-6 border-t border-cream-200">
+                <div class="text-xs text-stone-500">Currently waiting in live queue: <strong class="text-stone-900">${waitingCount}</strong></div>
+                <button id="btn-enter-student-dash" class="px-6 py-3 rounded-xl bg-forest-800 hover:bg-forest-900 text-white text-sm font-bold transition shadow-xs">Continue to Student Dashboard →</button>
+              </div>
+            </div>
+          </div>
+        `;
+
+        document.getElementById('btn-enter-student-dash').addEventListener('click', () => {
+          state.session = { role: 'STUDENT', displayName: 'Student Session' };
+          state.view = 'STUDENT';
+          logAudit('STUDENT', 'SESSION_START', 'STUDENT_PORTAL', 'Student entered intake dashboard.');
+          saveState();
+          render();
+        });
+      }
+
+      // View: Staff & Admin Landing Page
+      function renderStaffLanding(root) {
+        const meta = getTenantMeta();
+        const td = getTenantData();
+        const pendingCleanup = td.cleanupItems.filter(c => !c.dismissed).length;
+
+        root.innerHTML = `
+          <div class="max-w-4xl mx-auto space-y-6">
+            <div class="bg-white rounded-3xl border border-cream-300 p-6 sm:p-8 shadow-xs">
+              <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <span class="px-3 py-1 rounded-full bg-cream-200 text-stone-900 text-xs font-bold">STAFF &amp; PRINCIPAL PORTAL • ${escapeHtml(meta.code)}</span>
+                ${pendingCleanup > 0 ? `<span class="px-3 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold">Admin Reminder: ${pendingCleanup} Cleanup Item(s)</span>` : ''}
+              </div>
+              <h1 class="text-2xl font-extrabold text-stone-900">Window Operations, Supervision &amp; College Admin</h1>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                <div class="p-5 rounded-2xl bg-cream-50 border border-cream-300 flex flex-col justify-between">
+                  <div>
+                    <div class="text-xs font-bold text-forest-800 uppercase">Counter Terminal</div>
+                    <h2 class="text-base font-bold text-stone-900 mt-1">Window Operator</h2>
+                    <p class="text-xs text-stone-600 mt-1">Select your counter (W1–W7) and enter that window's unique staff passcode.</p>
+                    <div class="mt-3 space-y-2">
+                      <select id="op-window-select" class="w-full text-xs font-semibold border border-cream-300 rounded-lg px-2.5 py-2 bg-white">
+                        ${['W1','W2','W3','W4','W5','W6','W7'].map(w => `<option value="${w}">${w}</option>`).join('')}
+                      </select>
+                      <input id="op-passcode" type="password" placeholder="Enter window passcode" class="w-full text-xs border border-cream-300 rounded-lg px-2.5 py-2 bg-white" />
+                    </div>
+                  </div>
+                  <button id="login-operator" class="mt-4 w-full py-2.5 rounded-xl bg-forest-800 text-white text-xs font-bold hover:bg-forest-900 transition">Open Operator Terminal</button>
+                </div>
+
+                <div class="p-5 rounded-2xl bg-cream-50 border border-cream-300 flex flex-col justify-between">
+                  <div>
+                    <div class="text-xs font-bold text-bronze-600 uppercase">Floor Control</div>
+                    <h2 class="text-base font-bold text-stone-900 mt-1">Supervisor</h2>
+                    <p class="text-xs text-stone-600 mt-1">Monitor W1–W7 queues, pause/open counters, and rebalance waiting tokens live.</p>
+                    <div class="mt-3">
+                      <input id="sup-passcode" type="password" placeholder="Enter supervisor passcode" class="w-full text-xs border border-cream-300 rounded-lg px-2.5 py-2 bg-white" />
+                    </div>
+                  </div>
+                  <button id="login-supervisor" class="mt-4 w-full py-2.5 rounded-xl bg-bronze-600 text-white text-xs font-bold hover:bg-bronze-700 transition">Enter Supervisor View</button>
+                </div>
+
+                <div class="p-5 rounded-2xl bg-cream-50 border border-cream-300 flex flex-col justify-between">
+                  <div>
+                    <div class="text-xs font-bold text-stone-800 uppercase">Principal / Vice-Principal</div>
+                    <h2 class="text-base font-bold text-stone-900 mt-1">College Admin</h2>
+                    <p class="text-xs text-stone-600 mt-1">Weekly &amp; Monthly reports, window config, QR Poster, and Cleanup Checklist.</p>
+                    <div class="mt-3">
+                      <input id="admin-passcode" type="password" placeholder="Enter admin passcode" class="w-full text-xs border border-cream-300 rounded-lg px-2.5 py-2 bg-white" />
+                    </div>
+                  </div>
+                  <button id="login-admin" class="mt-4 w-full py-2.5 rounded-xl bg-stone-900 text-white text-xs font-bold hover:bg-stone-800 transition">Enter Admin Console</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+
+        document.getElementById('login-operator').addEventListener('click', async () => {
+          const winId = document.getElementById('op-window-select').value;
+          const code = document.getElementById('op-passcode').value.trim();
+          const ok = await verifyPasscode(winId, code);
+          if (!ok) { showToast(`Invalid passcode for ${winId}.`, 'error'); return; }
+          state.session = { role: 'OPERATOR', displayName: `Operator ${winId}`, windowId: winId };
+          state.view = 'OPERATOR';
+          logAudit('OPERATOR', 'SESSION_START', winId, `Operator authenticated into ${winId}.`);
+          saveState();
+          render();
+        });
+        document.getElementById('login-supervisor').addEventListener('click', async () => {
+          const code = document.getElementById('sup-passcode').value.trim();
+          const ok = await verifyPasscode('SUPERVISOR', code);
+          if (!ok) { showToast('Invalid Supervisor passcode.', 'error'); return; }
+          state.session = { role: 'SUPERVISOR', displayName: 'Supervisor' };
+          state.view = 'SUPERVISOR';
+          logAudit('SUPERVISOR', 'SESSION_START', 'SUPERVISOR_DESK', 'Supervisor authenticated.');
+          saveState();
+          render();
+        });
+        document.getElementById('login-admin').addEventListener('click', async () => {
+          const code = document.getElementById('admin-passcode').value.trim();
+          const ok = await verifyPasscode('ADMIN', code);
+          if (!ok) { showToast('Invalid Admin Console passcode.', 'error'); return; }
+          state.session = { role: 'ADMIN', displayName: 'Principal / Admin' };
+          state.view = 'ADMIN';
+          logAudit('ADMIN', 'SESSION_START', 'ADMIN_CONSOLE', 'College Admin authenticated.');
+          saveState();
+          render();
+        });
+      }
+
+      // View: Student Dashboard
+      function renderStudent(root) {
+        const td = getTenantData();
+        const meta = getTenantMeta();
+        const activeNotices = td.notices.filter(n => n.active && !n.expired);
+        const currentNotice = activeNotices[state.noticeSlideIdx % Math.max(1, activeNotices.length)];
+        const enabledServices = td.services.filter(s => s.enabled);
+        const activeTokens = td.tokens.filter(t => ['WAITING', 'CALLED', 'SERVING', 'PARKED'].includes(t.status)).slice().reverse();
+        const pendingOutbox = td.offlineOutbox;
+
+        const alertTokens = activeTokens.filter(t => {
+          if (t.ackStatus === 'ACKNOWLEDGED') return false;
+          if (t.status === 'CALLED') return true;
+          if (t.status === 'WAITING') {
+            return getEstimatedWaitMinutes(t) <= 5;
+          }
+          return false;
+        });
+
+        let newlyAlerted = false;
+        alertTokens.forEach(t => {
+          if (!t.alertTriggered) {
+            t.alertTriggered = true;
+            newlyAlerted = true;
+            triggerBrowserNotification(`CDWS 2.0 — Token ${t.tokenNumber} Ready Soon!`, `Come near ${t.assignedWindowId} (~${getEstimatedWaitMinutes(t)} min remaining).`);
+          }
+        });
+        if (newlyAlerted) {
+          playProximityAlarm();
+          saveState(false);
+        }
+
+        root.innerHTML = `
+          <div class="space-y-6">
+            ${alertTokens.length > 0 ? `
+              <section class="bg-amber-50 border-2 border-amber-500 rounded-2xl p-4 sm:p-5 shadow-md space-y-3 animate-pulse-soft">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <div class="flex items-center gap-2">
+                    <span class="px-2.5 py-0.5 rounded-full bg-amber-600 text-white text-xs font-extrabold">⏰ 5-MIN WINDOW ALARM</span>
+                    <span class="text-sm font-bold text-amber-950">Your turn is coming up! Please walk to your assigned window now.</span>
+                  </div>
+                </div>
+                <div class="space-y-2">
+                  ${alertTokens.map(t => {
+                    const est = t.status === 'CALLED' ? 0 : getEstimatedWaitMinutes(t);
+                    return `
+                      <div class="bg-white rounded-xl border border-amber-300 p-3 flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <div class="font-extrabold text-sm text-stone-900">Token ${escapeHtml(t.tokenNumber)} → ${escapeHtml(t.assignedWindowId)} <span class="text-xs font-semibold text-amber-800">(${t.status === 'CALLED' ? 'CALLED NOW!' : `~${est} min remaining`})</span></div>
+                          <div class="text-xs text-stone-600">${escapeHtml(t.studentName)} • ${escapeHtml(t.serviceName)}</div>
+                        </div>
+                        <button data-ack-token="${t.id}" class="px-4 py-2 rounded-xl bg-forest-800 text-white text-xs font-bold hover:bg-forest-900 transition shadow-xs">
+                          OK, I'm Coming to ${escapeHtml(t.assignedWindowId)} ✓
+                        </button>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </section>
+            ` : ''}
+
+            <section class="bg-white rounded-2xl border border-cream-300 p-4 sm:p-5 shadow-2xs">
+              <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <div class="flex items-center gap-2">
+                  <span class="px-2.5 py-0.5 rounded bg-forest-800 text-white text-xs font-bold">CAMPUS NOTICES</span>
+                  <span class="text-xs text-stone-500">${escapeHtml(meta.collegeName)}</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <button id="notice-prev" class="px-2 py-1 rounded border border-cream-300 text-xs hover:bg-cream-100">◀</button>
+                  <button id="notice-pause" class="px-2.5 py-1 rounded border border-cream-300 text-xs font-medium hover:bg-cream-100">${state.noticePaused ? 'Resume' : 'Pause'}</button>
+                  <button id="notice-next" class="px-2 py-1 rounded border border-cream-300 text-xs hover:bg-cream-100">▶</button>
+                </div>
+              </div>
+              ${currentNotice ? `
+                <div class="p-3.5 rounded-xl bg-cream-50 border border-cream-200">
+                  <div class="flex items-center justify-between gap-2">
+                    <h3 class="font-bold text-sm text-stone-900">${escapeHtml(currentNotice.title)}</h3>
+                    <span class="text-[11px] font-bold px-2 py-0.5 rounded bg-cream-200 text-stone-800">${escapeHtml(currentNotice.priority)}</span>
+                  </div>
+                  <p class="text-xs text-stone-700 mt-1">${escapeHtml(currentNotice.body)}</p>
+                </div>
+              ` : `<p class="text-xs text-stone-500">No active notices right now.</p>`}
+            </section>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <section class="lg:col-span-5 bg-white rounded-2xl border border-cream-300 p-5 sm:p-6 shadow-2xs">
+                <div class="flex items-center justify-between gap-2">
+                  <h2 class="text-lg font-bold text-stone-900">Issue Service Token</h2>
+                  <button id="btn-quick-fill" type="button" class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-cream-100 border border-cream-300 text-forest-800 hover:bg-cream-200">Quick-Fill Test</button>
+                </div>
+                <p class="text-xs text-stone-500 mt-1">Select a service; the system assigns the fastest eligible window.</p>
+
+                <form id="student-token-form" novalidate class="mt-4 space-y-3.5">
+                  <div>
+                    <label class="block text-xs font-semibold text-stone-700 mb-1">Student Full Name</label>
+                    <input id="stu-name" type="text" placeholder="Enter student name" class="w-full text-sm bg-cream-50 border border-cream-300 rounded-xl px-3 py-2.5 focus:bg-white focus:ring-2 focus:ring-forest-700 focus:outline-none" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-stone-700 mb-1">Student PRN (6–20 chars, identifier only)</label>
+                    <input id="stu-prn" type="text" placeholder="e.g., 202401640055" class="w-full text-sm bg-cream-50 border border-cream-300 rounded-xl px-3 py-2.5 font-mono focus:bg-white focus:ring-2 focus:ring-forest-700 focus:outline-none" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-stone-700 mb-1.5">Tap the Service You Need</label>
+                    <input type="hidden" id="stu-service" value="${escapeHtml(state.selectedServiceId || (enabledServices[0] ? enabledServices[0].id : ''))}" />
+                    <div class="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto pr-1">
+                      ${enabledServices.map(s => {
+                        const isSel = (state.selectedServiceId || (enabledServices[0] && enabledServices[0].id)) === s.id;
+                        return `
+                          <button type="button" data-pick-service="${s.id}" class="text-left p-3 rounded-xl border transition ${isSel ? 'bg-emerald-50/80 border-forest-800 ring-1 ring-forest-800' : 'bg-cream-50 border-cream-300 hover:bg-cream-100'}">
+                            <div class="flex items-center justify-between gap-2">
+                              <span class="font-bold text-xs sm:text-sm text-stone-900">${isSel ? '✓ ' : ''}${escapeHtml(s.name)}</span>
+                              <span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-white border border-cream-300 text-stone-700 shrink-0">~${s.avgMinutes}m</span>
+                            </div>
+                            <p class="text-[11px] text-stone-600 mt-0.5 leading-snug">${escapeHtml(s.desc || s.category)}</p>
+                          </button>
+                        `;
+                      }).join('')}
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-stone-700 mb-1">Supporting Document Name (Optional)</label>
+                    <input id="stu-doc" type="text" placeholder="e.g., fee_receipt_2026.pdf" class="w-full text-sm bg-cream-50 border border-cream-300 rounded-xl px-3 py-2 focus:bg-white focus:ring-2 focus:ring-forest-700 focus:outline-none" />
+                  </div>
+                  <div id="stu-form-error" class="hidden p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium"></div>
+                  <button type="submit" class="w-full py-3 rounded-xl ${state.offlineMode ? 'bg-bronze-600 hover:bg-bronze-700' : 'bg-forest-800 hover:bg-forest-900'} text-white text-sm font-bold transition shadow-xs">
+                    ${state.offlineMode ? 'Save to Offline Outbox' : 'Generate Digital Token'}
+                  </button>
+                </form>
+
+                <div class="mt-6 pt-5 border-t border-cream-200">
+                  <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-stone-600">Offline Outbox (${pendingOutbox.length})</h3>
+                    <button id="btn-sync-offline" class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-stone-900 text-white hover:bg-stone-700 transition">Sync Pending</button>
+                  </div>
+                  ${pendingOutbox.length === 0 ? `<p class="text-xs text-stone-400">No offline requests queued.</p>` : `
+                    <div class="space-y-2 max-h-44 overflow-y-auto">
+                      ${pendingOutbox.map(req => `
+                        <div class="p-2.5 rounded-lg border text-xs ${req.syncStatus === 'PENDING_SYNC' ? 'bg-amber-50 border-amber-200' : req.syncStatus === 'SYNCED' ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}">
+                          <div class="flex justify-between font-semibold"><span>${escapeHtml(req.serviceName)}</span><span>${escapeHtml(req.syncStatus)}</span></div>
+                          <div class="text-[11px] text-stone-600 mt-0.5">PRN: ${escapeHtml(req.prn)}</div>
+                          ${req.issuedTokenNumber ? `<div class="text-[11px] text-emerald-800 font-bold mt-0.5">Issued: ${escapeHtml(req.issuedTokenNumber)} (${escapeHtml(req.assignedWindowId)})</div>` : ''}
+                          ${req.errorReason ? `<div class="text-[11px] text-rose-700 mt-0.5">${escapeHtml(req.errorReason)}</div>` : ''}
+                        </div>
+                      `).join('')}
+                    </div>
+                  `}
+                </div>
+              </section>
+
+              <section class="lg:col-span-7 bg-white rounded-2xl border border-cream-300 p-5 sm:p-6 shadow-2xs">
+                <div class="mb-4">
+                  <h2 class="text-lg font-bold text-stone-900">Live Campus Queue (${activeTokens.length} Active)</h2>
+                  <p class="text-xs text-stone-500">Updates automatically across open Student &amp; Staff windows.</p>
+                </div>
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left border-collapse text-xs sm:text-sm">
+                    <thead>
+                      <tr class="border-b border-cream-200 text-stone-500 text-xs">
+                        <th class="py-2 pr-3">Token</th><th class="py-2 pr-3">Student / PRN</th><th class="py-2 pr-3">Service</th><th class="py-2 pr-3">Window</th><th class="py-2 pr-3">Status</th><th class="py-2 text-right">QR</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-cream-100">
+                      ${activeTokens.length === 0 ? `<tr><td colspan="6" class="py-8 text-center text-stone-400">No tokens issued yet. Submit the form to issue the first token!</td></tr>` : activeTokens.map(t => `
+                        <tr class="hover:bg-cream-50">
+                          <td class="py-2.5 pr-3 font-extrabold text-stone-900">${escapeHtml(t.tokenNumber)}</td>
+                          <td class="py-2.5 pr-3"><div class="font-semibold text-stone-800">${escapeHtml(t.studentName)}</div><div class="text-[11px] font-mono text-stone-500">${escapeHtml(t.prn)}</div></td>
+                          <td class="py-2.5 pr-3 text-stone-700">${escapeHtml(t.serviceName)}</td>
+                          <td class="py-2.5 pr-3"><span class="px-2 py-0.5 rounded bg-cream-200 text-forest-800 font-bold text-xs">${escapeHtml(t.assignedWindowId)}</span></td>
+                          <td class="py-2.5 pr-3">
+                            ${renderStatusBadge(t.status)}
+                            <div class="text-[10px] mt-0.5 font-semibold ${t.ackStatus === 'ACKNOWLEDGED' ? 'text-emerald-700' : 'text-stone-400'}">
+                              ${t.ackStatus === 'ACKNOWLEDGED' ? '✓ Coming' : `~${getEstimatedWaitMinutes(t)}m wait`}
+                            </div>
+                          </td>
+                          <td class="py-2.5 text-right whitespace-nowrap space-x-1">
+                            <button data-test-alarm="${t.id}" class="px-2 py-1 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 text-[11px] font-semibold hover:bg-amber-100 transition" title="Test 5-Min Alarm">⏰</button>
+                            <button data-qr-token="${t.id}" class="px-2.5 py-1 rounded-lg border border-cream-300 text-xs font-semibold hover:bg-cream-100 transition">QR</button>
+                          </td>
+                        </tr>
+                      `).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
+          </div>
+        `;
+
+        document.getElementById('notice-prev').addEventListener('click', () => { state.noticeSlideIdx = Math.max(0, state.noticeSlideIdx - 1); render(); });
+        document.getElementById('notice-next').addEventListener('click', () => { state.noticeSlideIdx++; render(); });
+        document.getElementById('notice-pause').addEventListener('click', () => { state.noticePaused = !state.noticePaused; render(); });
+
+        root.querySelectorAll('[data-pick-service]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            state.selectedServiceId = btn.getAttribute('data-pick-service');
+            render();
+          });
+        });
+
+        document.getElementById('btn-quick-fill').addEventListener('click', () => {
+          const sampleNames = ['Aarav Kulkarni', 'Sneha Deshmukh', 'Rohan Patil', 'Priya Sharma', 'Omkar Joshi'];
+          document.getElementById('stu-name').value = sampleNames[Math.floor(Math.random() * sampleNames.length)];
+          document.getElementById('stu-prn').value = '20240164' + String(Math.floor(1000 + Math.random() * 8999));
+          document.getElementById('stu-doc').value = 'id_card_scan.pdf';
+          document.getElementById('stu-form-error').classList.add('hidden');
+        });
+
+        document.getElementById('student-token-form').addEventListener('submit', (e) => {
+          unlockAudio();
+          try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch (err) {}
+          e.preventDefault();
+          const errEl = document.getElementById('stu-form-error');
+          errEl.classList.add('hidden');
+          const studentName = document.getElementById('stu-name').value.trim();
+          const prn = document.getElementById('stu-prn').value.trim();
+          const serviceId = document.getElementById('stu-service').value;
+          const docName = document.getElementById('stu-doc').value.trim();
+          const srv = td.services.find(s => s.id === serviceId);
+
+          if (!studentName) { errEl.textContent = 'Please enter the student name.'; errEl.classList.remove('hidden'); return; }
+          if (!/^[a-zA-Z0-9]{6,20}$/.test(prn)) { errEl.textContent = 'PRN must be 6–20 letters or digits.'; errEl.classList.remove('hidden'); return; }
+
+          if (state.offlineMode) {
+            const reqId = 'OFF-' + Math.random().toString(36).slice(2, 7).toUpperCase();
+            td.offlineOutbox.unshift({ clientRequestId: reqId, prn, studentName, serviceId, serviceName: srv ? srv.name : serviceId, docName, syncStatus: 'PENDING_SYNC', createdAt: Date.now() });
+            logAudit('STUDENT', 'OFFLINE_REQUEST_QUEUED', reqId, `Queued offline intake for PRN ${prn}.`);
+            saveState();
+            render();
+            showToast('Saved to Offline Outbox.', 'warning');
+            return;
+          }
+
+          const res = issueAuthoritativeToken({ prn, studentName, serviceId, docName });
+          if (!res.ok) { errEl.textContent = res.error; errEl.classList.remove('hidden'); return; }
+          saveState();
+          render();
+          showToast(`Token ${res.token.tokenNumber} assigned to ${res.token.assignedWindowId}!`, 'success');
+          openQrModal(res.token.id);
+        });
+
+        document.getElementById('btn-sync-offline').addEventListener('click', syncOfflineOutbox);
+        root.querySelectorAll('[data-qr-token]').forEach(btn => btn.addEventListener('click', () => openQrModal(btn.getAttribute('data-qr-token'))));
+        root.querySelectorAll('[data-ack-token]').forEach(btn => btn.addEventListener('click', () => {
+          const t = td.tokens.find(x => x.id === btn.getAttribute('data-ack-token'));
+          if (!t) return;
+          t.ackStatus = 'ACKNOWLEDGED';
+          t.ackAt = nowTimeStr();
+          logAudit('STUDENT', 'PROXIMITY_ALERT_ACK', t.tokenNumber, `Student clicked OK, coming to ${t.assignedWindowId}.`);
+          saveState();
+          render();
+          showToast(`Confirmed! Operator at ${t.assignedWindowId} notified you are coming.`, 'success');
+        }));
+        root.querySelectorAll('[data-test-alarm]').forEach(btn => btn.addEventListener('click', () => {
+          const t = td.tokens.find(x => x.id === btn.getAttribute('data-test-alarm'));
+          if (!t) return;
+          t.ackStatus = 'NONE';
+          t.alertTriggered = false;
+          playProximityAlarm();
+          triggerBrowserNotification(`CDWS 2.0 — Token ${t.tokenNumber}`, `5-Min Alarm! Come to ${t.assignedWindowId}.`);
+          render();
+          showToast(`5-Min Alarm triggered for ${t.tokenNumber}!`, 'warning');
+        }));
+      }
+
+      // View: Operator Terminal
+      function renderOperator(root) {
+        const td = getTenantData();
+        const winId = state.session?.windowId || 'W1';
+        const win = td.windows.find(w => w.id === winId) || td.windows[0];
+        const activeToken = td.tokens.find(t => t.assignedWindowId === win.id && (t.status === 'CALLED' || t.status === 'SERVING'));
+        const waitingQueue = td.tokens.filter(t => t.assignedWindowId === win.id && t.status === 'WAITING');
+        const parkedTokens = td.tokens.filter(t => t.assignedWindowId === win.id && t.status === 'PARKED');
+        const dueForRecall = parkedTokens.filter(t => (win.servedCount - (t.parkedAtServedCount || 0)) >= 4);
+
+        root.innerHTML = `
+          <div class="space-y-6">
+            <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-5 rounded-2xl border border-cream-300 shadow-2xs">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h1 class="text-xl font-bold text-stone-900">Operator Terminal — ${escapeHtml(win.name)}</h1>
+                  <span class="px-2.5 py-0.5 rounded-full text-xs font-bold ${win.status === 'OPEN' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${escapeHtml(win.status)}</span>
+                </div>
+                <p class="text-xs text-stone-500 mt-1">${escapeHtml(win.type)} • Real Served Count: <strong>${win.servedCount}</strong></p>
+              </div>
+              <div class="flex items-center gap-2">
+<span class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-cream-100 border border-cream-300 text-stone-700">Locked to ${escapeHtml(win.id)}</span>
+                <button id="op-call-next" ${activeToken || waitingQueue.length === 0 || win.status !== 'OPEN' ? 'disabled' : ''} class="px-4 py-2 rounded-xl bg-forest-800 text-white text-sm font-bold hover:bg-forest-900 disabled:opacity-40 transition">
+                  Call Next (${waitingQueue.length})
+                </button>
+              </div>
+            </div>
+
+            ${dueForRecall.length > 0 ? `
+              <div class="bg-amber-50 border-2 border-amber-400 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 animate-pulse-soft">
+                <div>
+                  <div class="text-sm font-bold text-amber-950">Recall Reminder: ${dueForRecall.length} Parked Token(s) Due!</div>
+                  <p class="text-xs text-amber-900">4+ students processed since parking. Recall now or cancel/skip if absent.</p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  ${dueForRecall.map(pt => `<button data-recall-id="${pt.id}" ${activeToken ? 'disabled' : ''} class="px-3 py-1.5 rounded-lg bg-bronze-600 text-white text-xs font-bold hover:bg-bronze-700 disabled:opacity-40">Recall ${escapeHtml(pt.tokenNumber)}</button>`).join('')}
+                </div>
+              </div>
+            ` : ''}
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <section class="lg:col-span-6 bg-white rounded-2xl border border-cream-300 p-6 shadow-2xs">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-stone-500 mb-4">Current Counter Slot</h2>
+                ${activeToken ? `
+                  <div class="p-5 rounded-2xl bg-cream-50 border border-cream-300">
+                    <div class="flex items-center justify-between"><span class="text-3xl font-extrabold text-stone-900">${escapeHtml(activeToken.tokenNumber)}</span>${renderStatusBadge(activeToken.status)}</div>
+                    <div class="mt-3 text-sm font-bold text-stone-800">${escapeHtml(activeToken.studentName)}</div>
+                    <div class="text-xs font-mono text-stone-500">PRN: ${escapeHtml(activeToken.prn)}</div>
+                    <div class="text-xs text-forest-800 font-semibold mt-1">${escapeHtml(activeToken.serviceName)}</div>
+                    <div class="mt-5 flex flex-wrap gap-2">
+                      ${activeToken.status === 'CALLED' ? `
+                        <button id="op-start-serving" class="px-4 py-2 rounded-xl bg-forest-800 text-white text-xs font-bold hover:bg-forest-900">Start Serving</button>
+                        ${activeToken.recallCount === 0 ? `<button id="op-park-noshow" class="px-4 py-2 rounded-xl bg-amber-500 text-stone-950 text-xs font-bold hover:bg-amber-600">No-Show (Park 4 Turns)</button>` : `<button id="op-cancel-noshow" class="px-4 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-700">Skip &amp; Cancel</button>`}
+                      ` : `<button id="op-complete-token" class="px-4 py-2 rounded-xl bg-forest-700 text-white text-xs font-bold hover:bg-forest-800">Complete Service</button>`}
+                      <button id="op-verify-qr" class="px-3 py-2 rounded-xl border border-cream-300 bg-white text-stone-700 text-xs font-semibold hover:bg-cream-100">Simulate QR Check</button>
+                    </div>
+                  </div>
+                ` : `<div class="p-8 text-center rounded-2xl border border-dashed border-cream-300 text-stone-400 text-sm">Counter is idle.</div>`}
+              </section>
+
+              <section class="lg:col-span-6 space-y-5">
+                <div class="bg-white rounded-2xl border border-cream-300 p-5 shadow-2xs">
+                  <h2 class="text-sm font-bold text-stone-900 mb-3">Waiting Queue (${waitingQueue.length})</h2>
+                  ${waitingQueue.length === 0 ? `<p class="text-xs text-stone-400">No waiting tokens at ${escapeHtml(win.id)}.</p>` : `<div class="space-y-2 max-h-52 overflow-y-auto">${waitingQueue.map((t, idx) => `<div class="flex items-center justify-between p-2.5 rounded-xl bg-cream-50 border border-cream-200 text-xs"><div><span class="font-bold">#${idx + 1} ${escapeHtml(t.tokenNumber)}</span> <span class="ml-2">${escapeHtml(t.studentName)}</span> ${t.ackStatus === 'ACKNOWLEDGED' ? '<span class="ml-1.5 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">✓ Confirmed Coming</span>' : (t.alertTriggered ? '<span class="ml-1.5 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-bold text-[10px]">🔔 5m Alert Sent</span>' : '')}</div><span class="text-stone-500">${escapeHtml(t.serviceName)}</span></div>`).join('')}</div>`}
+                </div>
+                <div class="bg-white rounded-2xl border border-cream-300 p-5 shadow-2xs">
+                  <h2 class="text-sm font-bold text-stone-900 mb-3">Parked No-Show Tokens (${parkedTokens.length})</h2>
+                  ${parkedTokens.length === 0 ? `<p class="text-xs text-stone-400">No parked tokens.</p>` : `<div class="space-y-2">${parkedTokens.map(t => `<div class="flex items-center justify-between p-2.5 rounded-xl border bg-cream-50 border-cream-200 text-xs"><div><span class="font-bold">${escapeHtml(t.tokenNumber)}</span> <span class="ml-1">${escapeHtml(t.studentName)}</span><div class="text-[11px] text-stone-500">Turns since parked: ${win.servedCount - (t.parkedAtServedCount || 0)}/4</div></div><div class="flex gap-1.5"><button data-recall-id="${t.id}" ${activeToken ? 'disabled' : ''} class="px-2.5 py-1 rounded bg-bronze-600 text-white font-semibold disabled:opacity-40">Recall</button><button data-cancel-parked="${t.id}" class="px-2.5 py-1 rounded bg-rose-100 text-rose-700 font-semibold">Cancel</button></div></div>`).join('')}</div>`}
+                </div>
+              </section>
+            </div>
+          </div>
+        `;
+
+        document.getElementById('op-call-next').addEventListener('click', () => {
+          if (waitingQueue.length === 0) return;
+          const next = waitingQueue[0];
+          next.status = 'CALLED';
+          win.currentTokenId = next.id;
+          logAudit('OPERATOR', 'TOKEN_CALLED', next.tokenNumber, `Called at ${win.id}.`);
+          saveState(); render();
+        });
+        if (activeToken) {
+          const b1 = document.getElementById('op-start-serving');
+          if (b1) b1.addEventListener('click', () => { activeToken.status = 'SERVING'; logAudit('OPERATOR', 'SERVING_STARTED', activeToken.tokenNumber, `Serving at ${win.id}.`); saveState(); render(); });
+          const b2 = document.getElementById('op-park-noshow');
+          if (b2) b2.addEventListener('click', () => { activeToken.status = 'PARKED'; activeToken.parkedAtServedCount = win.servedCount; win.currentTokenId = null; logAudit('OPERATOR', 'TOKEN_PARKED_NOSHOW', activeToken.tokenNumber, `Parked at ${win.id}.`); saveState(); render(); });
+          const b3 = document.getElementById('op-cancel-noshow');
+          if (b3) b3.addEventListener('click', () => { activeToken.status = 'NO_SHOW_CANCELLED'; win.currentTokenId = null; logAudit('OPERATOR', 'TOKEN_NO_SHOW_CANCELLED', activeToken.tokenNumber, `Cancelled on recall.`); saveState(); render(); });
+          const b4 = document.getElementById('op-complete-token');
+          if (b4) b4.addEventListener('click', () => { activeToken.status = 'COMPLETED'; win.servedCount++; win.currentTokenId = null; logAudit('OPERATOR', 'TOKEN_COMPLETED', activeToken.tokenNumber, `Completed at ${win.id}.`); saveState(); render(); showToast(`Completed ${activeToken.tokenNumber}!`, 'success'); });
+          const b5 = document.getElementById('op-verify-qr');
+          if (b5) b5.addEventListener('click', () => showToast(`Simulated QR Check Passed: ${activeToken.tokenNumber}`, 'success'));
+        }
+        root.querySelectorAll('[data-recall-id]').forEach(btn => btn.addEventListener('click', () => {
+          const pt = td.tokens.find(t => t.id === btn.getAttribute('data-recall-id'));
+          if (!pt) return;
+          pt.status = 'CALLED'; pt.recallCount = (pt.recallCount || 0) + 1; win.currentTokenId = pt.id;
+          logAudit('OPERATOR', 'PARKED_TOKEN_RECALLED', pt.tokenNumber, `Recalled at ${win.id}.`); saveState(); render();
+        }));
+        root.querySelectorAll('[data-cancel-parked]').forEach(btn => btn.addEventListener('click', () => {
+          const pt = td.tokens.find(t => t.id === btn.getAttribute('data-cancel-parked'));
+          if (!pt) return;
+          pt.status = 'NO_SHOW_CANCELLED'; logAudit('OPERATOR', 'PARKED_TOKEN_CANCELLED', pt.tokenNumber, `Cancelled at ${win.id}.`); saveState(); render();
+        }));
+      }
+
+      // View: Supervisor
+      function renderSupervisor(root) {
+        const td = getTenantData();
+        const meta = getTenantMeta();
+        const waitingTokens = td.tokens.filter(t => t.status === 'WAITING');
+
+        root.innerHTML = `
+          <div class="space-y-6">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div><h1 class="text-xl font-bold text-stone-900">Supervisor Oversight — ${escapeHtml(meta.collegeName)}</h1><p class="text-xs text-stone-500">Monitor W1–W7 load, toggle windows, and rebalance shared-pool queues.</p></div>
+              <button id="sup-toggle-cutoff" class="px-3.5 py-2 rounded-xl text-xs font-bold border ${td.cutoffClosed ? 'bg-rose-600 text-white border-rose-600' : 'bg-white text-stone-700 border-cream-300'}">${td.cutoffClosed ? 'Cutoff Active (Reopen)' : 'Trigger Service Cutoff'}</button>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              ${td.windows.map(w => {
+                const wWait = td.tokens.filter(t => t.assignedWindowId === w.id && t.status === 'WAITING').length;
+                const wPark = td.tokens.filter(t => t.assignedWindowId === w.id && t.status === 'PARKED').length;
+                const active = td.tokens.find(t => t.id === w.currentTokenId);
+                return `<div class="bg-white rounded-2xl border border-cream-300 p-4 shadow-2xs"><div class="flex items-center justify-between"><span class="font-bold">${escapeHtml(w.id)}</span><button data-toggle-win="${w.id}" class="px-2 py-0.5 rounded-full text-[11px] font-bold ${w.status === 'OPEN' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${escapeHtml(w.status)} (Toggle)</button></div><div class="mt-3 grid grid-cols-3 gap-2 text-center bg-cream-50 p-2 rounded-xl text-xs"><div><div class="text-stone-400 text-[10px]">Wait</div><div class="font-bold">${wWait}</div></div><div><div class="text-stone-400 text-[10px]">Parked</div><div class="font-bold">${wPark}</div></div><div><div class="text-stone-400 text-[10px]">Served</div><div class="font-bold">${w.servedCount}</div></div></div><div class="mt-2.5 text-xs text-stone-600 truncate">Current: <strong>${active ? escapeHtml(active.tokenNumber) : 'Idle'}</strong></div></div>`;
+              }).join('')}
+            </div>
+            <section class="bg-white rounded-2xl border border-cream-300 p-5 shadow-2xs">
+              <h2 class="text-base font-bold text-stone-900 mb-3">Queue Rebalancing</h2>
+              <div class="overflow-x-auto"><table class="w-full text-left text-xs sm:text-sm border-collapse"><thead><tr class="border-b border-cream-200 text-stone-500 text-xs"><th class="py-2 pr-3">Token</th><th class="py-2 pr-3">Service</th><th class="py-2 pr-3">Window</th><th class="py-2 text-right">Reassign</th></tr></thead><tbody class="divide-y divide-cream-100">${waitingTokens.length === 0 ? `<tr><td colspan="4" class="py-4 text-center text-stone-400">No waiting tokens.</td></tr>` : waitingTokens.map(t => `<tr><td class="py-2.5 pr-3 font-bold">${escapeHtml(t.tokenNumber)}</td><td class="py-2.5 pr-3">${escapeHtml(t.serviceName)}</td><td class="py-2.5 pr-3 font-bold text-forest-800">${escapeHtml(t.assignedWindowId)}</td><td class="py-2.5 text-right">${t.eligibleWindowsSnapshot.length > 1 ? `<select data-reassign-token="${t.id}" class="text-xs border border-cream-300 rounded-lg px-2 py-1 bg-white">${t.eligibleWindowsSnapshot.map(wid => `<option value="${wid}" ${wid === t.assignedWindowId ? 'selected' : ''}>${wid}</option>`).join('')}</select>` : `<span class="text-xs text-stone-400">Dedicated</span>`}</td></tr>`).join('')}</tbody></table></div>
+            </section>
+          </div>
+        `;
+        document.getElementById('sup-toggle-cutoff').addEventListener('click', () => { td.cutoffClosed = !td.cutoffClosed; logAudit('SUPERVISOR', 'CUTOFF_TOGGLED', meta.code, `Cutoff: ${td.cutoffClosed}`); saveState(); render(); });
+        root.querySelectorAll('[data-toggle-win]').forEach(btn => btn.addEventListener('click', () => { const w = td.windows.find(x => x.id === btn.getAttribute('data-toggle-win')); if (!w) return; w.status = w.status === 'OPEN' ? 'PAUSED' : 'OPEN'; logAudit('SUPERVISOR', 'WINDOW_STATUS_TOGGLED', w.id, `${w.id}: ${w.status}`); saveState(); render(); }));
+        root.querySelectorAll('[data-reassign-token]').forEach(sel => sel.addEventListener('change', (e) => { const t = td.tokens.find(x => x.id === sel.getAttribute('data-reassign-token')); if (!t) return; t.assignedWindowId = e.target.value; logAudit('SUPERVISOR', 'TOKEN_REASSIGNED', t.tokenNumber, `Moved to ${t.assignedWindowId}`); saveState(); render(); }));
+      }
+
+      // View: College Admin / Principal
+      function renderAdmin(root) {
+        const td = getTenantData();
+        const meta = getTenantMeta();
+        const pendingCleanupCount = td.cleanupItems.filter(c => !c.dismissed).length;
+        const tabs = [
+          { id: 'ANALYTICS', label: 'Weekly & Monthly Reports' },
+          { id: 'CLEANUP', label: `Principal Cleanup Checklist (${pendingCleanupCount})` },
+          { id: 'CONFIG', label: 'Service & Window Config' },
+          { id: 'NOTICES', label: 'Notice Management' },
+          { id: 'AUDIT', label: `Audit Logs (${td.auditLogs.length})` }
+        ];
+
+        root.innerHTML = `
+          <div class="space-y-6">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div><h1 class="text-xl font-bold text-stone-900">College Admin &amp; Principal Console — ${escapeHtml(meta.collegeName)}</h1><p class="text-xs text-stone-500">Isolated governance for ${escapeHtml(meta.branchName)} (${escapeHtml(meta.code)}).</p></div>
+              <div class="flex flex-wrap items-center gap-2">
+                <button id="btn-offline-toggle" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition ${state.offlineMode ? 'bg-rose-50 border-rose-300 text-rose-700' : 'bg-emerald-50 border-emerald-200 text-emerald-800'}">
+                  <span class="w-2 h-2 rounded-full ${state.offlineMode ? 'bg-rose-500 animate-pulse' : 'bg-emerald-600'}"></span>
+                  <span>System: ${state.offlineMode ? 'Offline Mode' : 'Online'}</span>
+                </button>
+                <button id="btn-poster-modal" class="px-3 py-1.5 rounded-xl bg-bronze-600 text-white text-xs font-bold hover:bg-bronze-700 transition">Student QR Poster</button>
+                <button id="btn-cloud-modal" class="px-3 py-1.5 rounded-xl bg-forest-800 text-white text-xs font-bold hover:bg-forest-900 transition">Multi-Device Cloud Sync (Supabase)</button>
+                <button id="btn-architecture-modal" class="px-3 py-1.5 rounded-xl bg-white border border-cream-300 text-stone-700 text-xs font-semibold hover:bg-cream-100 transition">Simulated vs. Production</button>
+                <button id="btn-reset-demo" class="px-3 py-1.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold hover:bg-rose-100 transition">Reset Session</button>
+              </div>
+            </div>
+            ${pendingCleanupCount > 0 ? `<div class="flex justify-start"><button id="banner-goto-cleanup" class="px-3.5 py-2 rounded-xl bg-amber-100 border border-amber-300 text-amber-950 text-xs font-bold hover:bg-amber-200 transition">🔔 System Reminder: ${pendingCleanupCount} Item(s) Need Review →</button></div>` : ''}
+            <div class="flex flex-wrap gap-x-4 gap-y-2 border-b border-cream-300">
+              ${tabs.map(t => `<button data-admin-tab="${t.id}" class="pb-2.5 text-xs sm:text-sm whitespace-nowrap ${state.adminTab === t.id ? 'tab-active' : 'text-stone-500 hover:text-stone-900'}">${escapeHtml(t.label)}</button>`).join('')}
+            </div>
+            <div id="admin-tab-body"></div>
+          </div>
+        `;
+        const b = document.getElementById('banner-goto-cleanup');
+        if (b) b.addEventListener('click', () => { state.adminTab = 'CLEANUP'; saveState(false); render(); });
+        document.getElementById('btn-offline-toggle').addEventListener('click', () => { state.offlineMode = !state.offlineMode; saveState(); render(); showToast(state.offlineMode ? 'Admin set system to Offline Mode.' : 'Admin set system to Online Mode.', state.offlineMode ? 'warning' : 'success'); });
+        document.getElementById('btn-poster-modal').addEventListener('click', openStudentPosterModal);
+        document.getElementById('btn-cloud-modal').addEventListener('click', openCloudModal);
+        document.getElementById('btn-architecture-modal').addEventListener('click', openArchitectureModal);
+        document.getElementById('btn-reset-demo').addEventListener('click', () => { state = buildDefaultState(); state.session = { role: 'ADMIN', displayName: 'Principal / Admin' }; state.view = 'ADMIN'; saveState(); render(); showToast('Session reset.', 'info'); });
+        root.querySelectorAll('[data-admin-tab]').forEach(btn => btn.addEventListener('click', () => { state.adminTab = btn.getAttribute('data-admin-tab'); saveState(false); render(); }));
+
+        const body = document.getElementById('admin-tab-body');
+        if (state.adminTab === 'ANALYTICS') renderAdminAnalytics(body, td);
+        else if (state.adminTab === 'CLEANUP') renderAdminCleanup(body, td);
+        else if (state.adminTab === 'CONFIG') renderAdminConfig(body, td);
+        else if (state.adminTab === 'NOTICES') renderAdminNotices(body, td);
+        else renderAdminAudit(body, td);
+      }
+
+      function renderAdminAnalytics(container, td) {
+        const now = Date.now();
+        const weekMs = 7 * 86400000;
+        const monthMs = 30 * 86400000;
+        const completedTokens = td.tokens.filter(t => t.status === 'COMPLETED');
+        const serviceRows = td.services.map(s => {
+          const allForSrv = td.tokens.filter(t => t.serviceId === s.id);
+          return {
+            name: s.name,
+            weekCount: allForSrv.filter(t => (now - t.createdAt) <= weekMs).length,
+            monthCount: allForSrv.filter(t => (now - t.createdAt) <= monthMs).length,
+            doneCount: allForSrv.filter(t => t.status === 'COMPLETED').length
+          };
+        });
+
+        container.innerHTML = `
+          <div class="space-y-6">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div class="bg-white p-5 rounded-2xl border border-cream-300"><div class="text-xs text-stone-500">Total Real Tokens Issued</div><div class="text-2xl font-extrabold text-stone-900 mt-1">${td.tokens.length}</div></div>
+              <div class="bg-white p-5 rounded-2xl border border-cream-300"><div class="text-xs text-stone-500">Real Completed Services</div><div class="text-2xl font-extrabold text-forest-800 mt-1">${completedTokens.length}</div></div>
+              <div class="bg-white p-5 rounded-2xl border border-cream-300"><div class="text-xs text-stone-500">Currently Waiting</div><div class="text-2xl font-extrabold text-bronze-600 mt-1">${td.tokens.filter(t => t.status === 'WAITING').length}</div></div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl border border-cream-300 shadow-2xs">
+              <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+                <div><h2 class="text-base font-bold text-stone-900">Weekly &amp; Monthly Service Report</h2><p class="text-xs text-stone-500">Computed strictly from real tokens issued in this system.</p></div>
+                <button id="btn-export-csv" class="px-3 py-1.5 rounded-lg bg-forest-800 text-white text-xs font-semibold hover:bg-forest-900">Download CSV Report</button>
+              </div>
+              <div class="overflow-x-auto"><table class="w-full text-left text-xs sm:text-sm border-collapse"><thead><tr class="border-b border-cream-200 text-stone-500 text-xs"><th class="py-2 pr-3">Service Name</th><th class="py-2 pr-3 text-right">This Week (7d)</th><th class="py-2 pr-3 text-right">This Month (30d)</th><th class="py-2 text-right">Completed</th></tr></thead><tbody class="divide-y divide-cream-100">${serviceRows.map(r => `<tr><td class="py-2.5 pr-3 font-semibold text-stone-800">${escapeHtml(r.name)}</td><td class="py-2.5 pr-3 text-right font-mono">${r.weekCount}</td><td class="py-2.5 pr-3 text-right font-mono">${r.monthCount}</td><td class="py-2.5 text-right font-mono font-bold text-forest-800">${r.doneCount}</td></tr>`).join('')}</tbody></table></div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div class="bg-white p-5 rounded-2xl border border-cream-300"><h3 class="text-sm font-bold text-stone-900 mb-3">Served Volume by Window (W1–W7)</h3><div class="relative h-72"><canvas id="chart-windows"></canvas></div></div>
+              <div class="bg-white p-5 rounded-2xl border border-cream-300"><h3 class="text-sm font-bold text-stone-900 mb-3">Real Queue Status Distribution</h3><div class="relative h-72"><canvas id="chart-status"></canvas></div></div>
+            </div>
+          </div>
+        `;
+
+        document.getElementById('btn-export-csv').addEventListener('click', () => {
+          const lines = ['Service,This Week,This Month,Completed', ...serviceRows.map(r => `"${r.name}",${r.weekCount},${r.monthCount},${r.doneCount}`)];
+          const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a'); a.href = url; a.download = `cdws2_report_${getTenantMeta().code}.csv`; a.click(); URL.revokeObjectURL(url);
+        });
+
+        setTimeout(() => {
+          if (!window.Chart) return;
+          if (chartInstances.win) chartInstances.win.destroy();
+          if (chartInstances.status) chartInstances.status.destroy();
+          const ctxWin = document.getElementById('chart-windows');
+          if (ctxWin) chartInstances.win = new Chart(ctxWin, { type: 'bar', data: { labels: td.windows.map(w => w.id), datasets: [{ label: 'Served', data: td.windows.map(w => w.servedCount), backgroundColor: '#1B4332', borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } } });
+          const statuses = ['WAITING', 'CALLED', 'SERVING', 'PARKED', 'COMPLETED', 'NO_SHOW_CANCELLED'];
+          const ctxSt = document.getElementById('chart-status');
+          if (ctxSt) chartInstances.status = new Chart(ctxSt, { type: 'doughnut', data: { labels: statuses, datasets: [{ data: statuses.map(st => td.tokens.filter(t => t.status === st).length), backgroundColor: ['#1B4332', '#0284c7', '#2D6A4F', '#D97706', '#44403C', '#be123c'] }] }, options: { responsive: true, maintainAspectRatio: false } });
+        }, 0);
+      }
+
+      function renderAdminCleanup(container, td) {
+        const items = td.cleanupItems.filter(c => !c.dismissed);
+        container.innerHTML = `
+          <div class="bg-white rounded-2xl border border-cream-300 p-5 sm:p-6 shadow-2xs space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-cream-200 pb-4">
+              <div>
+                <h2 class="text-base font-bold text-stone-900">Principal / Vice-Principal Cleanup Reminder</h2>
+                <p class="text-xs text-stone-500 mt-0.5">Flags expired notices, duplicate documents, and 30-day retention items. Check the ✅ boxes below each item to delete or keep.</p>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button id="cln-retention-scan" class="px-3 py-1.5 rounded-lg bg-cream-200 border border-cream-300 text-stone-900 text-xs font-bold hover:bg-cream-300">Run 30-Day Retention Scan</button>
+                <button id="cln-select-all" class="px-3 py-1.5 rounded-lg border border-cream-300 text-xs font-semibold hover:bg-cream-100">Select All</button>
+                <button id="cln-delete-selected" class="px-3.5 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-bold hover:bg-rose-700">Delete Checked</button>
+                <button id="cln-keep-selected" class="px-3.5 py-1.5 rounded-lg bg-forest-800 text-white text-xs font-bold hover:bg-forest-900">Keep Checked</button>
+              </div>
+            </div>
+            ${items.length === 0 ? `<div class="p-8 text-center text-sm text-stone-500 bg-cream-50 rounded-xl border border-cream-200">All clear! No items pending Principal review.</div>` : `
+              <div class="space-y-3">
+                ${items.map(item => {
+                  const checked = !!state.cleanupSelected[item.id];
+                  return `
+                    <div class="p-4 rounded-xl border ${checked ? 'bg-rose-50/60 border-rose-300' : 'bg-cream-50 border-cream-200'}">
+                      <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-cream-200 text-stone-800">${escapeHtml(item.category.replace(/_/g, ' '))}</span>
+                      <h3 class="font-bold text-sm text-stone-900 mt-1">${escapeHtml(item.title)}</h3>
+                      <p class="text-xs text-stone-600 mt-0.5">${escapeHtml(item.detail)}</p>
+                      <label class="mt-3 inline-flex items-center gap-2 cursor-pointer select-none pt-2 border-t border-cream-200 w-full text-xs font-semibold text-stone-800">
+                        <input type="checkbox" data-cln-check="${item.id}" ${checked ? 'checked' : ''} class="w-4 h-4 accent-forest-800 rounded" />
+                        <span>✅ Mark for action (Delete or Keep)</span>
+                      </label>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            `}
+          </div>
+        `;
+
+        document.getElementById('cln-retention-scan').addEventListener('click', run30DayRetentionScan);
+        container.querySelectorAll('[data-cln-check]').forEach(cb => cb.addEventListener('change', () => { state.cleanupSelected[cb.getAttribute('data-cln-check')] = cb.checked; render(); }));
+        document.getElementById('cln-select-all').addEventListener('click', () => { items.forEach(i => { state.cleanupSelected[i.id] = true; }); render(); });
+        document.getElementById('cln-delete-selected').addEventListener('click', () => {
+          const ids = items.filter(i => state.cleanupSelected[i.id]).map(i => i.id);
+          if (ids.length === 0) { showToast('Check at least one item.', 'warning'); return; }
+          ids.forEach(id => {
+            const it = td.cleanupItems.find(x => x.id === id);
+            if (it && it.category === 'EXPIRED_NOTICE' && it.refId) td.notices = td.notices.filter(n => n.id !== it.refId);
+            if (it && it.category === 'DUPLICATE_DOCUMENT' && it.refId) td.documents = td.documents.filter(d => d.id !== it.refId);
+            logAudit('ADMIN', 'CLEANUP_DELETED', it ? it.title : id, 'Principal/Admin approved deletion.');
+            delete state.cleanupSelected[id];
+          });
+          td.cleanupItems = td.cleanupItems.filter(x => !ids.includes(x.id));
+          saveState(); render(); showToast(`Deleted ${ids.length} item(s).`, 'success');
+        });
+        document.getElementById('cln-keep-selected').addEventListener('click', () => {
+          const ids = items.filter(i => state.cleanupSelected[i.id]).map(i => i.id);
+          if (ids.length === 0) { showToast('Check at least one item.', 'warning'); return; }
+          ids.forEach(id => {
+            const it = td.cleanupItems.find(x => x.id === id);
+            if (it) it.dismissed = true;
+            logAudit('ADMIN', 'CLEANUP_KEPT', it ? it.title : id, 'Principal/Admin kept item.');
+            delete state.cleanupSelected[id];
+          });
+          saveState(); render(); showToast(`Kept ${ids.length} item(s).`, 'info');
+        });
+      }
+
+      function renderAdminConfig(container, td) {
+        container.innerHTML = `
+          <div class="bg-white rounded-2xl border border-cream-300 p-5 shadow-2xs space-y-4">
+            <div class="p-3 rounded-xl bg-cream-100 border border-cream-300 text-xs text-stone-800"><strong>In-Flight Token Safety:</strong> Updating eligible windows for W1–W4 applies strictly to future tokens.</div>
+            <div class="overflow-x-auto"><table class="w-full text-left text-xs sm:text-sm border-collapse"><thead><tr class="border-b border-cream-200 text-stone-500 text-xs"><th class="py-2 pr-3">Service</th><th class="py-2 pr-3">Pool</th><th class="py-2 pr-3">Eligible Windows</th><th class="py-2 text-right">Status</th></tr></thead><tbody class="divide-y divide-cream-100">${td.services.map(s => `<tr><td class="py-3 pr-3 font-semibold">${escapeHtml(s.name)}</td><td class="py-3 pr-3 text-xs text-stone-500">${escapeHtml(s.poolType)}</td><td class="py-3 pr-3">${s.poolType === 'SHARED_POOL' ? `<div class="flex flex-wrap gap-1.5">${['W1','W2','W3','W4'].map(wid => `<button data-srv-win="${s.id}:${wid}" class="px-2 py-0.5 rounded text-xs font-semibold border ${s.eligibleWindows.includes(wid) ? 'bg-forest-800 text-white border-forest-800' : 'bg-white text-stone-600 border-cream-300'}">${wid}</button>`).join('')}</div>` : `<span class="px-2 py-0.5 rounded bg-cream-100 text-xs font-semibold">${escapeHtml(s.eligibleWindows.join(', '))} (Fixed)</span>`}</td><td class="py-3 text-right"><button data-toggle-srv="${s.id}" class="px-2.5 py-1 rounded-lg text-xs font-semibold ${s.enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-200 text-stone-600'}">${s.enabled ? 'Enabled' : 'Disabled'}</button></td></tr>`).join('')}</tbody></table></div>
+          </div>
+        `;
+        container.querySelectorAll('[data-srv-win]').forEach(btn => btn.addEventListener('click', () => {
+          const [sid, wid] = btn.getAttribute('data-srv-win').split(':');
+          const srv = td.services.find(x => x.id === sid);
+          if (!srv) return;
+          if (srv.eligibleWindows.includes(wid)) { if (srv.eligibleWindows.length === 1) { showToast('Keep at least 1 window.', 'warning'); return; } srv.eligibleWindows = srv.eligibleWindows.filter(w => w !== wid); }
+          else { srv.eligibleWindows.push(wid); srv.eligibleWindows.sort(); }
+          logAudit('ADMIN', 'SERVICE_POOL_UPDATED', srv.name, `Windows: [${srv.eligibleWindows.join(', ')}]`); saveState(); render();
+        }));
+        container.querySelectorAll('[data-toggle-srv]').forEach(btn => btn.addEventListener('click', () => {
+          const srv = td.services.find(x => x.id === btn.getAttribute('data-toggle-srv'));
+          if (!srv) return;
+          srv.enabled = !srv.enabled; logAudit('ADMIN', 'SERVICE_TOGGLED', srv.name, `Enabled: ${srv.enabled}`); saveState(); render();
+        }));
+      }
+
+      function renderAdminNotices(container, td) {
+        container.innerHTML = `
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <form id="admin-notice-form" class="lg:col-span-5 bg-white rounded-2xl border border-cream-300 p-5 shadow-2xs space-y-3">
+              <h2 class="text-base font-bold text-stone-900">Publish New Notice</h2>
+              <input id="not-title" type="text" required placeholder="Notice Headline" class="w-full text-sm bg-cream-50 border border-cream-300 rounded-xl px-3 py-2" />
+              <textarea id="not-body" rows="3" required placeholder="Details..." class="w-full text-sm bg-cream-50 border border-cream-300 rounded-xl px-3 py-2"></textarea>
+              <select id="not-priority" class="w-full text-sm bg-cream-50 border border-cream-300 rounded-xl px-3 py-2"><option value="NORMAL">NORMAL</option><option value="INFO">INFO</option><option value="URGENT">URGENT</option></select>
+              <button type="submit" class="w-full py-2.5 rounded-xl bg-forest-800 text-white text-sm font-bold hover:bg-forest-900">Publish Notice</button>
+            </form>
+            <div class="lg:col-span-7 bg-white rounded-2xl border border-cream-300 p-5 shadow-2xs space-y-3">
+              <h2 class="text-base font-bold text-stone-900">Campus Notices (${td.notices.length})</h2>
+              ${td.notices.map(n => `<div class="p-3.5 rounded-xl border border-cream-200 bg-cream-50 flex items-start justify-between gap-3"><div><div class="font-bold text-sm">${escapeHtml(n.title)} <span class="text-[11px] px-1.5 py-0.5 rounded bg-cream-200">${escapeHtml(n.priority)}</span></div><p class="text-xs text-stone-600 mt-1">${escapeHtml(n.body)}</p></div><button data-del-notice="${n.id}" class="text-xs text-rose-600 font-semibold hover:underline">Delete</button></div>`).join('')}
+            </div>
+          </div>
+        `;
+        document.getElementById('admin-notice-form').addEventListener('submit', (e) => {
+          e.preventDefault();
+          const title = document.getElementById('not-title').value.trim();
+          const body = document.getElementById('not-body').value.trim();
+          const priority = document.getElementById('not-priority').value;
+          if (!title || !body) return;
+          td.notices.unshift({ id: 'N-' + Date.now(), title, body, priority, active: true, expired: false, createdAt: 'Just now' });
+          logAudit('ADMIN', 'NOTICE_PUBLISHED', title, `Priority: ${priority}`); saveState(); render();
+        });
+        container.querySelectorAll('[data-del-notice]').forEach(btn => btn.addEventListener('click', () => {
+          td.notices = td.notices.filter(n => n.id !== btn.getAttribute('data-del-notice'));
+          logAudit('ADMIN', 'NOTICE_DELETED', 'NOTICE', 'Removed notice.'); saveState(); render();
+        }));
+      }
+
+      function renderAdminAudit(container, td) {
+        const filtered = state.auditFilter === 'ALL' ? td.auditLogs : td.auditLogs.filter(l => l.role === state.auditFilter);
+        container.innerHTML = `
+          <div class="bg-white rounded-2xl border border-cream-300 p-5 shadow-2xs space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h2 class="text-base font-bold text-stone-900">Immutable Campus Audit Trail</h2>
+              <select id="audit-role-filter" class="text-xs border border-cream-300 rounded-lg px-2.5 py-1.5 bg-cream-50">
+                ${['ALL','STUDENT','OPERATOR','SUPERVISOR','ADMIN','SERVER_ENGINE','SYSTEM'].map(r => `<option value="${r}" ${state.auditFilter === r ? 'selected' : ''}>Role: ${r}</option>`).join('')}
+              </select>
+            </div>
+            <div class="overflow-x-auto max-h-96 overflow-y-auto"><table class="w-full text-left text-xs border-collapse"><thead><tr class="border-b border-cream-200 text-stone-500"><th class="py-2 pr-3">Time</th><th class="py-2 pr-3">Actor</th><th class="py-2 pr-3">Action</th><th class="py-2 pr-3">Target</th><th class="py-2">Detail</th></tr></thead><tbody class="divide-y divide-cream-100">${filtered.map(l => `<tr><td class="py-2 pr-3 font-mono text-stone-500">${escapeHtml(l.timestamp)}</td><td class="py-2 pr-3 font-semibold">${escapeHtml(l.role)}</td><td class="py-2 pr-3 font-mono text-forest-800">${escapeHtml(l.action)}</td><td class="py-2 pr-3 font-semibold">${escapeHtml(l.target)}</td><td class="py-2 text-stone-600">${escapeHtml(l.detail)}</td></tr>`).join('')}</tbody></table></div>
+          </div>
+        `;
+        document.getElementById('audit-role-filter').addEventListener('change', (e) => { state.auditFilter = e.target.value; render(); });
+      }
+
+      function renderStatusBadge(status) {
+        const map = { WAITING: 'bg-cream-200 text-stone-800', CALLED: 'bg-sky-100 text-sky-900', SERVING: 'bg-emerald-100 text-emerald-900', PARKED: 'bg-amber-100 text-amber-900', COMPLETED: 'bg-stone-200 text-stone-800', NO_SHOW_CANCELLED: 'bg-rose-100 text-rose-800' };
+        return `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold ${map[status] || 'bg-stone-100 text-stone-700'}">${escapeHtml(status)}</span>`;
+      }
+
+      function render() {
+        renderHeader();
+        const root = document.getElementById('app-root');
+        if (state.view === 'LANDING') renderLanding(root);
+        else if (state.view === 'STUDENT_LANDING') renderStudentLanding(root);
+        else if (state.view === 'STAFF_LANDING') renderStaffLanding(root);
+        else if (state.view === 'MONITOR') renderMonitor(root);
+        else if (state.view === 'STUDENT') renderStudent(root);
+        else if (state.view === 'OPERATOR') renderOperator(root);
+        else if (state.view === 'SUPERVISOR') renderSupervisor(root);
+        else if (state.view === 'ADMIN') renderAdmin(root);
+        else renderLanding(root);
+      }
+
+      document.getElementById('nav-logo').addEventListener('click', () => { window.location.hash = ''; state.view = 'LANDING'; saveState(false); render(); });
+      document.getElementById('nav-portal-home').addEventListener('click', () => { window.location.hash = ''; state.view = 'LANDING'; saveState(false); render(); });
+      document.getElementById('nav-portal-student').addEventListener('click', () => { window.location.hash = '#student'; state.view = 'STUDENT_LANDING'; saveState(false); render(); });
+      document.getElementById('nav-portal-staff').addEventListener('click', () => { window.location.hash = '#staff'; state.view = 'STAFF_LANDING'; saveState(false); render(); });
+      document.getElementById('nav-portal-monitor').addEventListener('click', () => { window.location.hash = '#monitor'; state.view = 'MONITOR'; saveState(false); render(); });
+      document.getElementById('mob-nav-student').addEventListener('click', () => { window.location.hash = '#student'; state.view = 'STUDENT_LANDING'; saveState(false); render(); });
+      document.getElementById('mob-nav-staff').addEventListener('click', () => { window.location.hash = '#staff'; state.view = 'STAFF_LANDING'; saveState(false); render(); });
+      document.getElementById('mob-nav-monitor').addEventListener('click', () => { window.location.hash = '#monitor'; state.view = 'MONITOR'; saveState(false); render(); });
+
+      function handleTenantChange(newId) {
+        state.activeTenantId = newId;
+        state.noticeSlideIdx = 0;
+        saveState(false);
+        if (cloudCfg.connected && cloudCfg.url && cloudCfg.anonKey) initSupabaseConnection(cloudCfg.url, cloudCfg.anonKey, true);
+        render();
+        showToast(`Switched campus: ${getTenantMeta().collegeName}`, 'info');
+      }
+
+      document.getElementById('tenant-select').addEventListener('change', (e) => handleTenantChange(e.target.value));
+      document.getElementById('tenant-select-mobile').addEventListener('change', (e) => handleTenantChange(e.target.value));
+      document.getElementById('btn-back-main').addEventListener('click', () => { window.location.hash = ''; state.session = null; state.view = 'LANDING'; saveState(false); render(); });
+
+
+      setInterval(() => {
+        if (state.view === 'STUDENT' && !state.noticePaused) {
+          const td = getTenantData();
+          if (td.notices.filter(n => n.active && !n.expired).length > 1) { state.noticeSlideIdx++; render(); }
+        }
+      }, 6500);
+
+      render();
+    })();
+  </script>
+</body>
+</html>

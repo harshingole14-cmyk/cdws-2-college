@@ -4,6 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CDWS 2.0 — College Digital Window Services</title>
+  <meta name="description" content="CDWS 2.0 — College Digital Window Services for Jeevandeep Art's, Commerce and Science College (Goveli, Khardi, Poi). Service-first digital queue tokens, 5-minute alarms, and live window monitoring." />
+  <meta name="keywords" content="CDWS 2.0, College Digital Window Services, Jeevandeep College Goveli, Jeevandeep Khardi, Jeevandeep Poi, Digital Token System" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:title" content="CDWS 2.0 — College Digital Window Services" />
+  <meta property="og:description" content="Queue-free campus window services for Jeevandeep Art's, Commerce and Science College (Goveli, Khardi, Poi)." />
+  <meta property="og:type" content="website" />
+  <!-- Paste your Google Search Console verification meta tag below when verifying cdws-2-college.vercel.app -->
+  <!-- <meta name="google-site-verification" content="PASTE_YOUR_CODE_HERE" /> -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -273,6 +281,33 @@
       }
       applyHashRoute();
 
+      async function pushTokenRowToSupabase(token) {
+        if (!supabaseClient || !cloudCfg.connected || !token) return;
+        try {
+          await supabaseClient.from('cdws_tokens').upsert({
+            id: token.id,
+            tenant_id: state.activeTenantId,
+            token_number: token.tokenNumber,
+            prn: token.prn,
+            student_name: token.studentName,
+            service_id: token.serviceId,
+            service_name: token.serviceName,
+            doc_name: token.docName || '',
+            assigned_window_id: token.assignedWindowId,
+            eligible_windows_snapshot: token.eligibleWindowsSnapshot || [],
+            status: token.status,
+            created_at: new Date(token.createdAt || Date.now()).toISOString(),
+            parked_at_served_count: token.parkedAtServedCount,
+            recall_count: token.recallCount || 0,
+            ack_status: token.ackStatus || 'NONE',
+            ack_at: token.ackAt || null,
+            alert_triggered: !!token.alertTriggered,
+            client_request_id: token.clientRequestId,
+            qr_code_value: token.qrCodeValue
+          });
+        } catch (e) {}
+      }
+
       async function pushStateToSupabase() {
         if (!supabaseClient || !cloudCfg.connected) return;
         try {
@@ -281,6 +316,10 @@
             payload: state.tenants[state.activeTenantId],
             updated_at: new Date().toISOString()
           });
+          const tokens = state.tenants[state.activeTenantId]?.tokens || [];
+          if (tokens.length > 0) {
+            await pushTokenRowToSupabase(tokens[tokens.length - 1]);
+          }
         } catch (e) {}
       }
 
@@ -337,11 +376,73 @@
           if (supabaseChannel) {
             try { supabaseClient.removeChannel(supabaseChannel); } catch (e) {}
           }
+          // Sync normalized cdws_tokens rows if table exists
+          try {
+            const { data: normTokens, error: normErr } = await supabaseClient
+              .from('cdws_tokens')
+              .select('*')
+              .eq('tenant_id', state.activeTenantId)
+              .order('created_at', { ascending: true });
+            if (!normErr && Array.isArray(normTokens) && normTokens.length > 0) {
+              state.tenants[state.activeTenantId].tokens = normTokens.map(row => ({
+                id: row.id,
+                tokenNumber: row.token_number,
+                prn: row.prn,
+                studentName: row.student_name,
+                serviceId: row.service_id,
+                serviceName: row.service_name,
+                docName: row.doc_name || '',
+                assignedWindowId: row.assigned_window_id,
+                eligibleWindowsSnapshot: row.eligible_windows_snapshot || [],
+                status: row.status,
+                createdAt: new Date(row.created_at).getTime(),
+                parkedAtServedCount: row.parked_at_served_count,
+                recallCount: row.recall_count || 0,
+                ackStatus: row.ack_status || 'NONE',
+                ackAt: row.ack_at || null,
+                alertTriggered: !!row.alert_triggered,
+                clientRequestId: row.client_request_id,
+                qrCodeValue: row.qr_code_value
+              }));
+            }
+          } catch (e) {}
+
           supabaseChannel = supabaseClient
             .channel('cdws2-realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'cdws_shared_state' }, (payload) => {
               if (payload.new && payload.new.id === state.activeTenantId && payload.new.payload) {
                 state.tenants[state.activeTenantId] = payload.new.payload;
+                try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+                render();
+              }
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'cdws_tokens' }, (payload) => {
+              if (payload.new && payload.new.tenant_id === state.activeTenantId) {
+                const row = payload.new;
+                const td = state.tenants[state.activeTenantId];
+                const mapped = {
+                  id: row.id,
+                  tokenNumber: row.token_number,
+                  prn: row.prn,
+                  studentName: row.student_name,
+                  serviceId: row.service_id,
+                  serviceName: row.service_name,
+                  docName: row.doc_name || '',
+                  assignedWindowId: row.assigned_window_id,
+                  eligibleWindowsSnapshot: row.eligible_windows_snapshot || [],
+                  status: row.status,
+                  createdAt: new Date(row.created_at).getTime(),
+                  parkedAtServedCount: row.parked_at_served_count,
+                  recallCount: row.recall_count || 0,
+                  ackStatus: row.ack_status || 'NONE',
+                  ackAt: row.ack_at || null,
+                  alertTriggered: !!row.alert_triggered,
+                  clientRequestId: row.client_request_id,
+                  qrCodeValue: row.qr_code_value
+                };
+                const idx = td.tokens.findIndex(x => x.id === mapped.id);
+                if (idx >= 0) td.tokens[idx] = mapped;
+                else td.tokens.push(mapped);
                 try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
                 render();
               }

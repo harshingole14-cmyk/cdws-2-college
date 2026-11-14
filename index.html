@@ -34,6 +34,9 @@
 </head>
 <body class="min-h-screen flex flex-col antialiased overflow-x-hidden">
 
+  <div id="wa-browser-tip" class="hidden bg-amber-100 border-b border-amber-300 text-amber-950 text-xs px-4 py-2 text-center font-semibold">
+    Opened inside WhatsApp? Tap <strong>⋮ (top-right) → Open in Chrome</strong> for sound alarms &amp; token downloads.
+  </div>
   <!-- Trust & Prototype Notice Bar (Public-Safe: No Admin/Reset Controls) -->
   <div class="bg-cream-200 border-b border-cream-300 text-stone-800 text-xs px-4 py-1.5 flex items-center justify-center sm:justify-between gap-2">
     <div class="flex items-center gap-2">
@@ -241,11 +244,21 @@
         return buildDefaultState();
       }
 
+      const DEFAULT_CLOUD_CFG = {
+        url: 'https://njakznrfyjgmsymayzaz.supabase.co',
+        anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5qYWt6bnJmeWpnbXN5bWF5emF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ2NDQzNzYsImV4cCI6MjExMDIyMDM3Nn0.cZdzbDd-vIDHEAt8DLx0U3te1XKbXqdQH_fOkYdmU7M',
+        connected: true
+      };
+
       function loadCloudConfig() {
         try {
           const raw = localStorage.getItem(CLOUD_CFG_KEY);
-          return raw ? JSON.parse(raw) : { url: '', anonKey: '', connected: false };
-        } catch (e) { return { url: '', anonKey: '', connected: false }; }
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed && parsed.url && parsed.anonKey) return parsed;
+          }
+        } catch (e) {}
+        return { ...DEFAULT_CLOUD_CFG };
       }
 
       let state = loadState();
@@ -301,14 +314,19 @@
       window.addEventListener('storage', (e) => { if (e.key === STORAGE_KEY) syncFromStorage(); });
 
       async function initSupabaseConnection(url, anonKey, silent = false) {
-        if (!window.supabase || !url || !anonKey) return false;
+        const cleanUrl = String(url || '').trim().replace(/\/+$/, '');
+        const cleanKey = String(anonKey || '').trim();
+        if (!window.supabase || !cleanUrl || !cleanKey) return false;
         try {
-          supabaseClient = window.supabase.createClient(url, anonKey);
+          supabaseClient = window.supabase.createClient(cleanUrl, cleanKey);
           const { data, error } = await supabaseClient.from('cdws_shared_state').select('*').eq('id', state.activeTenantId).maybeSingle();
           if (error) {
             if (!silent) showToast('Supabase error: ' + error.message, 'error');
             return false;
           }
+          cloudCfg = { url: cleanUrl, anonKey: cleanKey, connected: true };
+          try { localStorage.setItem(CLOUD_CFG_KEY, JSON.stringify(cloudCfg)); } catch (e) {}
+
           if (data && data.payload) {
             state.tenants[state.activeTenantId] = data.payload;
             saveState(false);
@@ -330,13 +348,11 @@
             })
             .subscribe();
 
-          cloudCfg = { url, anonKey, connected: true };
-          try { localStorage.setItem(CLOUD_CFG_KEY, JSON.stringify(cloudCfg)); } catch (e) {}
           render();
           if (!silent) showToast('Connected to Supabase Realtime! Multi-device sync is active.', 'success');
           return true;
         } catch (e) {
-          if (!silent) showToast('Failed to connect to Supabase.', 'error');
+          if (!silent) showToast('Failed to connect: ' + (e && e.message ? e.message : 'Network error'), 'error');
           return false;
         }
       }
@@ -1836,6 +1852,11 @@
         }
       }, 6500);
 
+      try {
+        if (/WhatsApp/i.test(navigator.userAgent || '')) {
+          document.getElementById('wa-browser-tip')?.classList.remove('hidden');
+        }
+      } catch (e) {}
       render();
     })();
   </script>

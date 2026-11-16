@@ -437,7 +437,15 @@
             .channel('cdws2-realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'cdws_shared_state' }, (payload) => {
               if (payload.new && payload.new.id === state.activeTenantId && payload.new.payload) {
-                state.tenants[state.activeTenantId] = payload.new.payload;
+                const incoming = payload.new.payload;
+                const current = state.tenants[state.activeTenantId];
+                // Preserve any tokens created concurrently unless incoming explicitly reset tokens to empty
+                if (incoming.tokens && incoming.tokens.length > 0 && current && current.tokens) {
+                  const byId = new Map(current.tokens.map(t => [t.id, t]));
+                  incoming.tokens.forEach(t => byId.set(t.id, t));
+                  incoming.tokens = Array.from(byId.values()).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+                }
+                state.tenants[state.activeTenantId] = incoming;
                 try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
                 render();
               }

@@ -112,6 +112,32 @@
       'use strict';
 
       const STORAGE_KEY = 'cdws_2_0_trusted_state_v3';
+
+      const MY_TOKENS_KEY = 'cdws_my_tokens_v1';
+      const CDWS_LOCKOUT_KEY = 'cdws_lockout_v1';
+      const CDWS_LAST_TOKEN_KEY = 'cdws_last_token_v1';
+      let lastTokenIssueAt = (() => { try { return Number(localStorage.getItem(CDWS_LAST_TOKEN_KEY) || 0); } catch (e) { return 0; } })();
+      let loginLockout = (() => { try { const r = localStorage.getItem(CDWS_LOCKOUT_KEY); return r ? JSON.parse(r) : { fails: 0, lockedUntil: 0 }; } catch (e) { return { fails: 0, lockedUntil: 0 }; } })();
+      function saveLockout() { try { localStorage.setItem(CDWS_LOCKOUT_KEY, JSON.stringify(loginLockout)); } catch (e) {} }
+      function saveLastTokenTime(ts) { lastTokenIssueAt = ts; try { localStorage.setItem(CDWS_LAST_TOKEN_KEY, String(ts)); } catch (e) {} }
+
+      function getMyTokenIds() {
+        try {
+          const raw = localStorage.getItem(MY_TOKENS_KEY);
+          return raw ? JSON.parse(raw) : [];
+        } catch (e) { return []; }
+      }
+
+      function addMyTokenId(tokenId) {
+        try {
+          const list = getMyTokenIds();
+          if (!list.includes(tokenId)) {
+            list.push(tokenId);
+            localStorage.setItem(MY_TOKENS_KEY, JSON.stringify(list));
+          }
+        } catch (e) {}
+      }
+
       const CLOUD_CFG_KEY = 'cdws_2_0_supabase_cfg_v1';
       let bc = null;
       let supabaseClient = null;
@@ -147,22 +173,40 @@
       };
 
       async function verifyPasscode(roleKey, inputCode) {
+        const now = Date.now();
+        if (loginLockout.lockedUntil > now) {
+          const secs = Math.ceil((loginLockout.lockedUntil - now) / 1000);
+          showToast(`Too many wrong attempts. Wait ${secs}s before trying again.`, 'error');
+          return false;
+        }
+        let ok = false;
         if (supabaseClient && cloudCfg.connected) {
           try {
             const { data, error } = await supabaseClient.rpc('verify_cdws_passcode', {
               role_key: roleKey,
               input_code: inputCode
             });
-            if (!error && typeof data === 'boolean') return data;
-          } catch (e) {}
+            if (!error && typeof data === 'boolean') ok = data;
+          } catch (e) { ok = false; }
+        } else {
+          try {
+            const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(inputCode));
+            const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+            ok = (hex === LOCAL_PASSCODE_HASHES[roleKey]);
+          } catch (e) { ok = false; }
         }
-        try {
-          const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(inputCode));
-          const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-          return hex === LOCAL_PASSCODE_HASHES[roleKey];
-        } catch (e) {
-          return false;
+        if (ok) {
+          loginLockout = { fails: 0, lockedUntil: 0 };
+          saveLockout();
+        } else {
+          loginLockout.fails++;
+          if (loginLockout.fails >= 5) {
+            loginLockout.lockedUntil = Date.now() + 60000;
+            loginLockout.fails = 0;
+          }
+          saveLockout();
         }
+        return ok;
       }
 
       function createInitialTenantState(tenant) {
@@ -712,7 +756,7 @@
       });
 
       function openCloudModal() {
-        const sqlSnippet = `CREATE TABLE IF NOT EXISTS cdws_shared_state (\n  id TEXT PRIMARY KEY,\n  payload JSONB NOT NULL,\n  updated_at TIMESTAMPTZ DEFAULT NOW()\n);\nALTER TABLE cdws_shared_state ENABLE ROW LEVEL SECURITY;\nCREATE POLICY "Public demo access" ON cdws_shared_state FOR ALL USING (true) WITH CHECK (true);\nALTER PUBLICATION supabase_realtime ADD TABLE cdws_shared_state;\n\n-- Private Passcode Table (RLS blocks students from reading)\nCREATE TABLE IF NOT EXISTS cdws_passcodes (\n  role_key TEXT PRIMARY KEY,\n  passcode TEXT NOT NULL\n);\nALTER TABLE cdws_passcodes ENABLE ROW LEVEL SECURITY;\nINSERT INTO cdws_passcodes (role_key, passcode) VALUES\n  ('W1','W14829'),('W2','W27391'),('W3','W35147'),('W4','W49206'),\n  ('W5','W56384'),('W6','W61853'),('W7','W74028'),\n  ('SUPERVISOR','SUP8392'),('ADMIN','admin748291')\nON CONFLICT (role_key) DO NOTHING;\n\nCREATE OR REPLACE FUNCTION verify_cdws_passcode(role_key TEXT, input_code TEXT)\nRETURNS BOOLEAN LANGUAGE sql SECURITY DEFINER AS $$\n  SELECT EXISTS (SELECT 1 FROM cdws_passcodes p WHERE p.role_key = $1 AND p.passcode = $2);\n$$;`;
+        const sqlSnippet = `CREATE TABLE IF NOT EXISTS cdws_shared_state (\n  id TEXT PRIMARY KEY,\n  payload JSONB NOT NULL,\n  updated_at TIMESTAMPTZ DEFAULT NOW()\n);\nALTER TABLE cdws_shared_state ENABLE ROW LEVEL SECURITY;\nCREATE POLICY "Public demo access" ON cdws_shared_state FOR ALL USING (true) WITH CHECK (true);\nALTER PUBLICATION supabase_realtime ADD TABLE cdws_shared_state;\n\n-- Private Passcode Table (RLS blocks students from reading)\nCREATE TABLE IF NOT EXISTS cdws_passcodes (\n  role_key TEXT PRIMARY KEY,\n  passcode TEXT NOT NULL\n);\nALTER TABLE cdws_passcodes ENABLE ROW LEVEL SECURITY;\n-- Insert your own private passcodes in Supabase SQL Editor (never store them in HTML):\nINSERT INTO cdws_passcodes (role_key, passcode) VALUES\n  ('W1','CHANGE_W1'),('W2','CHANGE_W2'),('W3','CHANGE_W3'),('W4','CHANGE_W4'),\n  ('W5','CHANGE_W5'),('W6','CHANGE_W6'),('W7','CHANGE_W7'),\n  ('SUPERVISOR','CHANGE_SUP'),('ADMIN','CHANGE_ADMIN')\nON CONFLICT (role_key) DO NOTHING;\n\nCREATE OR REPLACE FUNCTION verify_cdws_passcode(role_key TEXT, input_code TEXT)\nRETURNS BOOLEAN LANGUAGE sql SECURITY DEFINER AS $$\n  SELECT EXISTS (SELECT 1 FROM cdws_passcodes p WHERE p.role_key = $1 AND p.passcode = $2);\n$$;`;
         openModal(`
           <div class="p-6 space-y-4">
             <div class="flex items-start justify-between border-b border-cream-300 pb-3">
@@ -853,6 +897,11 @@
         const td = getTenantData();
         const token = td.tokens.find(t => t.id === tokenId);
         if (!token) return;
+        const isStaff = state.session && ['OPERATOR', 'SUPERVISOR', 'ADMIN'].includes(state.session.role);
+        if (!isStaff && !getMyTokenIds().includes(token.id)) {
+          showToast('Access denied: You can only view your own QR token.', 'error');
+          return;
+        }
         openModal(`
           <div class="p-6 text-center">
             <div class="flex items-center justify-between border-b border-cream-300 pb-3 mb-4">
@@ -1141,7 +1190,7 @@
                     <div class="my-4 p-3 rounded-xl bg-cream-50 border border-cream-200 text-center">
                       <div class="text-[11px] text-stone-500 uppercase font-semibold">Now Serving / Called</div>
                       <div class="text-2xl font-extrabold text-forest-800 mt-1">${active ? escapeHtml(active.tokenNumber) : '—'}</div>
-                      <div class="text-xs text-stone-600 truncate mt-0.5">${active ? escapeHtml(active.studentName) : 'Counter Idle'}</div>
+                      <div class="text-xs text-stone-600 truncate mt-0.5">${active ? escapeHtml(active.serviceName) : 'Counter Idle'}</div>
                     </div>
                     <div class="flex justify-between text-xs text-stone-600 font-medium">
                       <span>Waiting: <strong>${waiting}</strong></span>
@@ -1287,7 +1336,9 @@
         const activeTokens = td.tokens.filter(t => ['WAITING', 'CALLED', 'SERVING', 'PARKED'].includes(t.status)).slice().reverse();
         const pendingOutbox = td.offlineOutbox;
 
+        const myIds = getMyTokenIds();
         const alertTokens = activeTokens.filter(t => {
+          if (!myIds.includes(t.id)) return false;
           if (t.ackStatus === 'ACKNOWLEDGED') return false;
           if (t.status === 'CALLED') return true;
           if (t.status === 'WAITING') {
@@ -1435,15 +1486,18 @@
                   <table class="w-full text-left border-collapse text-xs sm:text-sm">
                     <thead>
                       <tr class="border-b border-cream-200 text-stone-500 text-xs">
-                        <th class="py-2 pr-3">Token</th><th class="py-2 pr-3">Student / PRN</th><th class="py-2 pr-3">Service</th><th class="py-2 pr-3">Window</th><th class="py-2 pr-3">Status</th><th class="py-2 text-right">QR</th>
+                        <th class="py-2 pr-3">Token</th><th class="py-2 pr-3">Details (Private)</th><th class="py-2 pr-3">Window</th><th class="py-2 pr-3">Status</th><th class="py-2 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody class="divide-y divide-cream-100">
-                      ${activeTokens.length === 0 ? `<tr><td colspan="6" class="py-8 text-center text-stone-400">No tokens issued yet. Submit the form to issue the first token!</td></tr>` : activeTokens.map(t => `
-                        <tr class="hover:bg-cream-50">
-                          <td class="py-2.5 pr-3 font-extrabold text-stone-900">${escapeHtml(t.tokenNumber)}</td>
-                          <td class="py-2.5 pr-3"><div class="font-semibold text-stone-800">${escapeHtml(t.studentName)}</div><div class="text-[11px] font-mono text-stone-500">${escapeHtml(t.prn)}</div></td>
-                          <td class="py-2.5 pr-3 text-stone-700">${escapeHtml(t.serviceName)}</td>
+                      ${activeTokens.length === 0 ? `<tr><td colspan="5" class="py-8 text-center text-stone-400">No tokens issued yet. Submit the form to issue the first token!</td></tr>` : activeTokens.map(t => {
+                        const isMine = myIds.includes(t.id);
+                        return `
+                        <tr class="hover:bg-cream-50 ${isMine ? 'bg-emerald-50/40' : ''}">
+                          <td class="py-2.5 pr-3 font-extrabold text-stone-900">${escapeHtml(t.tokenNumber)} ${isMine ? '<span class="ml-1 px-1.5 py-0.5 rounded bg-forest-800 text-white text-[10px]">YOU</span>' : ''}</td>
+                          <td class="py-2.5 pr-3">
+                            ${isMine ? `<div class="font-semibold text-stone-800">${escapeHtml(t.studentName)}</div><div class="text-[11px] font-mono text-stone-500">${escapeHtml(t.prn)} • ${escapeHtml(t.serviceName)}</div>` : `<span class="text-xs text-stone-400 italic">Protected (Other Student)</span>`}
+                          </td>
                           <td class="py-2.5 pr-3"><span class="px-2 py-0.5 rounded bg-cream-200 text-forest-800 font-bold text-xs">${escapeHtml(t.assignedWindowId)}</span></td>
                           <td class="py-2.5 pr-3">
                             ${renderStatusBadge(t.status)}
@@ -1452,11 +1506,10 @@
                             </div>
                           </td>
                           <td class="py-2.5 text-right whitespace-nowrap space-x-1">
-                            <button data-test-alarm="${t.id}" class="px-2 py-1 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 text-[11px] font-semibold hover:bg-amber-100 transition" title="Test 5-Min Alarm">⏰</button>
-                            <button data-qr-token="${t.id}" class="px-2.5 py-1 rounded-lg border border-cream-300 text-xs font-semibold hover:bg-cream-100 transition">QR</button>
+                            ${isMine ? `<button data-test-alarm="${t.id}" class="px-2 py-1 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 text-[11px] font-semibold hover:bg-amber-100 transition" title="Test 5-Min Alarm">⏰</button><button data-qr-token="${t.id}" class="px-2.5 py-1 rounded-lg border border-cream-300 text-xs font-semibold hover:bg-cream-100 transition">QR</button>` : `<span class="text-[11px] text-stone-300">—</span>`}
                           </td>
-                        </tr>
-                      `).join('')}
+                        </tr>`;
+                      }).join('')}
                     </tbody>
                   </table>
                 </div>
@@ -1509,8 +1562,17 @@
             return;
           }
 
+          const nowMs = Date.now();
+          if (nowMs - lastTokenIssueAt < 30000) {
+            const waitSec = Math.ceil((30000 - (nowMs - lastTokenIssueAt)) / 1000);
+            errEl.textContent = `Rate limit: Please wait ${waitSec}s before requesting another token.`;
+            errEl.classList.remove('hidden');
+            return;
+          }
           const res = issueAuthoritativeToken({ prn, studentName, serviceId, docName });
           if (!res.ok) { errEl.textContent = res.error; errEl.classList.remove('hidden'); return; }
+          saveLastTokenTime(Date.now());
+          addMyTokenId(res.token.id);
           saveState();
           render();
           showToast(`Token ${res.token.tokenNumber} assigned to ${res.token.assignedWindowId}!`, 'success');
@@ -1954,7 +2016,7 @@
 
 
       setInterval(() => {
-        if (state.view === 'STUDENT' && !state.noticePaused) {
+        if (!document.hidden && state.view === 'STUDENT' && !state.noticePaused) {
           const td = getTenantData();
           if (td.notices.filter(n => n.active && !n.expired).length > 1) { state.noticeSlideIdx++; render(); }
         }

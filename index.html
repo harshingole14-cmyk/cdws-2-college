@@ -600,6 +600,81 @@
         return { window: bestWindow, estimatedWaitMinutes: bestEstMinutes };
       }
 
+
+      async function issueAuthoritativeTokenCloud({ prn, studentName, serviceId, docName = '', clientRequestId = null }) {
+        const td = getTenantData();
+        const meta = getTenantMeta();
+        if (td.cutoffClosed) return { ok: false, code: 'CUTOFF_EXPIRED', error: 'Service intake cutoff is currently active.' };
+        const service = td.services.find(s => s.id === serviceId && s.enabled);
+        if (!service) return { ok: false, code: 'SERVICE_UNAVAILABLE', error: 'Selected service is disabled.' };
+
+        const existingActive = td.tokens.find(t =>
+          t.prn === prn && t.serviceId === serviceId &&
+          ['WAITING', 'CALLED', 'SERVING', 'PARKED'].includes(t.status)
+        );
+        if (existingActive) {
+          return { ok: false, code: 'DUPLICATE_ACTIVE_TOKEN', error: `Active token ${existingActive.tokenNumber} already exists for PRN ${prn}.` };
+        }
+
+        const allocation = allocateWindowForService(service);
+        if (!allocation) return { ok: false, code: 'NO_OPEN_WINDOW', error: `No eligible windows (${service.eligibleWindows.join(', ')}) are OPEN.` };
+
+        const prefix = service.poolType === 'LIBRARY' ? 'L' : service.poolType === 'EXAM_SCHOLARSHIP' ? 'E' : service.poolType === 'CUSTOM' ? 'C' : 'A';
+        if (supabaseClient && cloudCfg.connected) {
+          try {
+            const { data, error } = await supabaseClient.rpc('issue_cdws_token_atomic', {
+              p_tenant_id: state.activeTenantId,
+              p_prefix: prefix,
+              p_prn: prn,
+              p_student_name: studentName || 'Student',
+              p_service_id: service.id,
+              p_service_name: service.name,
+              p_doc_name: docName || '',
+              p_window_id: allocation.window.id,
+              p_eligible_windows: service.eligibleWindows,
+              p_qr_code: `CDWS2|${meta.code}|${prefix}-SEQ|${allocation.window.id}|LIVE`
+            });
+            if (!error && data) {
+              const row = Array.isArray(data) ? data[0] : data;
+              if (row && row.token_number) {
+                const token = {
+                  id: row.id,
+                  tokenNumber: row.token_number,
+                  prn: row.prn,
+                  studentName: row.student_name,
+                  serviceId: row.service_id,
+                  serviceName: row.service_name,
+                  docName: row.doc_name || '',
+                  assignedWindowId: row.assigned_window_id,
+                  eligibleWindowsSnapshot: row.eligible_windows_snapshot || [...service.eligibleWindows],
+                  status: row.status,
+                  createdAt: new Date(row.created_at).getTime(),
+                  parkedAtServedCount: null,
+                  recallCount: 0,
+                  ackStatus: 'NONE',
+                  ackAt: null,
+                  alertTriggered: false,
+                  clientRequestId,
+                  qrCodeValue: row.qr_code_value
+                };
+                if (!td.tokens.some(x => x.id === token.id)) td.tokens.push(token);
+                logAudit('SERVER_ENGINE', 'TOKEN_ISSUED', token.tokenNumber, `Atomic server sequence allocated to ${token.assignedWindowId} for PRN ${prn}.`);
+                saveState(false);
+                try {
+                  await supabaseClient.from('cdws_shared_state').upsert({
+                    id: state.activeTenantId,
+                    payload: state.tenants[state.activeTenantId],
+                    updated_at: new Date().toISOString()
+                  });
+                } catch (e) {}
+                return { ok: true, token, estimatedWaitMinutes: allocation.estimatedWaitMinutes };
+              }
+            }
+          } catch (e) {}
+        }
+        return issueAuthoritativeToken({ prn, studentName, serviceId, docName, clientRequestId });
+      }
+
       function issueAuthoritativeToken({ prn, studentName, serviceId, docName = '', clientRequestId = null }) {
         const td = getTenantData();
         const meta = getTenantMeta();
@@ -1537,7 +1612,7 @@
           document.getElementById('stu-form-error').classList.add('hidden');
         });
 
-        document.getElementById('student-token-form').addEventListener('submit', (e) => {
+        document.getElementById('student-token-form').addEventListener('submit', async (e) => {
           unlockAudio();
           try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch (err) {}
           e.preventDefault();
@@ -1569,7 +1644,7 @@
             errEl.classList.remove('hidden');
             return;
           }
-          const res = issueAuthoritativeToken({ prn, studentName, serviceId, docName });
+          const res = await issueAuthoritativeTokenCloud({ prn, studentName, serviceId, docName });
           if (!res.ok) { errEl.textContent = res.error; errEl.classList.remove('hidden'); return; }
           saveLastTokenTime(Date.now());
           addMyTokenId(res.token.id);

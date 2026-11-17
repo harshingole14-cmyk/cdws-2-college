@@ -99,6 +99,13 @@
   <!-- Main Content Root -->
   <main id="app-root" class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6"></main>
 
+  <footer class="border-t border-cream-300 bg-white mt-auto">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-stone-500">
+      <span>CDWS 2.0 • College Digital Window Services (Jeevandeep Art's, Commerce and Science College, Goveli)</span>
+      <button id="btn-privacy-notice" type="button" class="underline font-semibold text-forest-800 hover:text-forest-900 transition">Privacy &amp; Data Notice (DPDP)</button>
+    </div>
+  </footer>
+
   <!-- Toast Container -->
   <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
 
@@ -900,6 +907,32 @@
         }
       }
 
+
+
+      function openPrivacyModal() {
+        openModal(`
+          <div class="p-6 space-y-4">
+            <div class="flex items-start justify-between border-b border-cream-300 pb-3">
+              <div>
+                <h2 class="text-lg font-bold text-stone-900">Privacy &amp; Data Notice (DPDP Act)</h2>
+                <p class="text-xs text-stone-500 mt-0.5">Jeevandeep Art's, Commerce and Science College, Goveli</p>
+              </div>
+              <button id="close-privacy-modal" class="text-stone-400 hover:text-stone-700 font-bold text-lg">✕</button>
+            </div>
+            <div class="space-y-2.5 text-xs sm:text-sm text-stone-700">
+              <p><strong>What We Collect:</strong> Student Full Name, PRN, selected window service, and optional document filename.</p>
+              <p><strong>Why We Collect It:</strong> Strictly to issue your digital queue token, route you to W1–W7, and send your 5-minute turn alert.</p>
+              <p><strong>Privacy Isolation:</strong> Other students cannot see your Name, PRN, or QR code on the Student Queue or Live Monitor.</p>
+              <p><strong>Retention &amp; Deletion:</strong> Records older than 30 days are flagged in the Principal Cleanup Checklist. Contact the College Admin office to request removal of your token record.</p>
+            </div>
+            <div class="flex justify-end pt-2">
+              <button id="ok-privacy-modal" class="px-4 py-2 rounded-xl bg-forest-800 text-white text-xs font-bold hover:bg-forest-900">Close</button>
+            </div>
+          </div>
+        `);
+        document.getElementById('close-privacy-modal').addEventListener('click', closeModal);
+        document.getElementById('ok-privacy-modal').addEventListener('click', closeModal);
+      }
 
       function openResetConfirmModal() {
         const meta = getTenantMeta();
@@ -2095,6 +2128,7 @@
       document.getElementById('mob-nav-monitor').addEventListener('click', () => { window.location.hash = '#monitor'; state.view = 'MONITOR'; saveState(false); render(); });
 
 
+      document.getElementById('btn-privacy-notice')?.addEventListener('click', openPrivacyModal);
       document.getElementById('btn-back-main').addEventListener('click', () => { window.location.hash = ''; state.session = null; state.view = 'LANDING'; saveState(false); render(); });
 
 
